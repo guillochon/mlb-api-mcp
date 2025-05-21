@@ -1,0 +1,21 @@
+# Python virtual environments
+.venv/
+venv/
+
+# uv lock and cache files
+uv.lock
+.uv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db 
