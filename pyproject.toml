@@ -9,6 +9,7 @@ description = "MCP Project"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi-mcp>=0.3.4",
+    "python-mlb-statsapi>=0.5.26",
 ]
 
 [tool.hatch.build.targets.wheel]
