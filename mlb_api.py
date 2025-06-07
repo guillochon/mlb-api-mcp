@@ -73,6 +73,77 @@ def get_multiple_player_stats(mlb, person_ids: list, stats: list, groups: list, 
     return splits
 
 
+def get_sabermetrics_for_players(mlb, player_ids: list, season: int, stat_name: str = None, group: str = "hitting") -> dict:
+    """
+    Get sabermetric statistics (like WAR) for multiple players for a specific season.
+    
+    Parameters
+    ----------
+    mlb : mlbstatsapi.Mlb
+        The MLB stats API instance
+    player_ids : list
+        List of player IDs to get sabermetrics for
+    season : int
+        The season year to get stats for
+    stat_name : str, optional
+        Specific sabermetric stat to extract (e.g., 'war', 'woba', 'wRc'). If None, returns all sabermetrics.
+    group : str
+        The stat group ('hitting' or 'pitching'). Default is 'hitting'.
+    
+    Returns
+    -------
+    dict
+        Dictionary containing player sabermetrics data
+    """
+    
+    # Build the API endpoint URL
+    endpoint = f'stats?stats=sabermetrics&group={group}&sportId=1&season={season}'
+    
+    # Make the API call directly
+    response = mlb._mlb_adapter_v1.get(endpoint=endpoint)
+    
+    if 400 <= response.status_code <= 499:
+        return {"error": f"API error: {response.status_code}"}
+    
+    if not response.data or 'stats' not in response.data:
+        return {"error": "No stats data found"}
+    
+    # Extract the relevant data
+    result = {"season": season, "group": group, "players": []}
+    
+    # Filter for our specific players
+    player_ids_int = [int(pid) for pid in player_ids]
+    
+    for stat_group in response.data['stats']:
+        if 'splits' in stat_group:
+            for split in stat_group['splits']:
+                if 'player' in split and split['player']['id'] in player_ids_int:
+                    player_data = {
+                        "player_id": split['player']['id'],
+                        "player_name": split['player'].get('fullName', 'Unknown'),
+                        "position": split.get('position', {}).get('abbreviation', 'N/A'),
+                        "team": split.get('team', {}).get('name', 'N/A'),
+                        "team_id": split.get('team', {}).get('id', None)
+                    }
+                    
+                    # Extract the sabermetric stats
+                    if 'stat' in split:
+                        if stat_name:
+                            # Return only the specific stat requested
+                            if stat_name.lower() in split['stat']:
+                                player_data[stat_name] = split['stat'][stat_name.lower()]
+                            else:
+                                player_data[stat_name] = None
+                                player_data["available_stats"] = list(split['stat'].keys())
+                        else:
+                            # Return all sabermetric stats
+                            player_data["sabermetrics"] = split['stat']
+                    
+                    result["players"].append(player_data)
+    
+    return result
+
+
 @router.get(
     "/standings",
     operation_id="get_mlb_standings",
@@ -443,6 +514,59 @@ async def player_stats(
             **params
         )
         return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/sabermetrics",
+    operation_id="get_mlb_sabermetrics",
+    description="""
+Get sabermetric statistics (including WAR) for multiple players for a specific season.
+
+Returns advanced statistical data like WAR, wOBA, wRC+, and other sabermetric measures.
+
+Examples:
+- `/mlb/sabermetrics?player_ids=592450,605141&season=2023` (returns all sabermetrics for Aaron Judge and Mookie Betts in 2023)
+- `/mlb/sabermetrics?player_ids=592450&season=2023&stat_name=war` (returns only WAR for Aaron Judge in 2023)
+- `/mlb/sabermetrics?player_ids=545361,592450&season=2021&group=hitting` (returns hitting sabermetrics for Mike Trout and Aaron Judge in 2021)
+""",
+)
+async def get_sabermetrics(
+    player_ids: str, 
+    season: int, 
+    stat_name: str = None, 
+    group: str = "hitting"
+):
+    """
+    Get sabermetric statistics for multiple players for a specific season.
+
+    Parameters:
+        player_ids (str): Comma-separated list of player IDs to get sabermetrics for.
+        season (int): The season year to get stats for.
+        stat_name (str, optional): Specific sabermetric stat to extract (e.g., 'war', 'woba', 'wrc'). If not provided, returns all sabermetrics.
+        group (str): The stat group ('hitting' or 'pitching'). Default is 'hitting'.
+
+    Returns:
+        dict: Dictionary containing player sabermetrics data.
+
+    Examples:
+        - Get all sabermetrics for multiple players:
+            /mlb/sabermetrics?player_ids=592450,605141&season=2023
+        - Get only WAR for a specific player:
+            /mlb/sabermetrics?player_ids=592450&season=2023&stat_name=war
+        - Get pitching sabermetrics:
+            /mlb/sabermetrics?player_ids=594798&season=2023&group=pitching
+    """
+    try:
+        result = get_sabermetrics_for_players(
+            mlb,
+            player_ids.split(","),
+            season=season,
+            stat_name=stat_name,
+            group=group
+        )
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
