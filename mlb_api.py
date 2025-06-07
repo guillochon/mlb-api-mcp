@@ -528,13 +528,20 @@ Get all players for a specific sport.
 
 Returns a list of all players for the specified sport ID.
 
-Example:
-- `/mlb/players` (returns all MLB players)
+Optional parameters:
+- `season`: Filter players by a specific season (year).
+
+Examples:
+- `/mlb/players` (returns all current MLB players)
+- `/mlb/players?season=2023` (returns all MLB players for the 2023 season)
 """,
 )
-async def get_players(sport_id: int = 1):
+async def get_players(sport_id: int = 1, season: int = None):
     try:
-        players = mlb.get_people(sport_id=sport_id)
+        params = {}
+        if season is not None:
+            params["season"] = season
+        players = mlb.get_people(sport_id=sport_id, **params)
         return {"players": players}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -586,7 +593,7 @@ async def get_awards(award_id: int):
     description="""
 Search for teams by name.
 
-Returns team ID(s) matching the given name.
+Returns team ID(s) matching the given name. Searches across full name, team name, abbreviation, and location.
 
 Example:
 - `/mlb/search_teams?team_name=Yankees` (returns IDs for teams named Yankees)
@@ -594,7 +601,34 @@ Example:
 )
 async def search_teams(team_name: str, search_key: str = "name"):
     try:
+        # First try the original method with full name
         team_ids = mlb.get_team_id(team_name, search_key=search_key)
+        
+        # If no results, try a more comprehensive search
+        if not team_ids:
+            # Get all teams and search manually
+            all_teams = mlb.get_teams(sport_id=1)
+            team_ids = []
+            search_term = team_name.lower()
+            
+            for team in all_teams:
+                # Search across multiple fields
+                fields_to_search = [
+                    getattr(team, 'name', ''),
+                    getattr(team, 'teamname', ''),
+                    getattr(team, 'abbreviation', ''),
+                    getattr(team, 'shortname', ''),
+                    getattr(team, 'locationname', ''),
+                    getattr(team, 'franchisename', ''),
+                    getattr(team, 'clubname', '')
+                ]
+                
+                # Check if search term matches any field (case insensitive)
+                for field in fields_to_search:
+                    if search_term in field.lower():
+                        team_ids.append(team.id)
+                        break  # Avoid adding the same team multiple times
+        
         return {"team_ids": team_ids}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -608,13 +642,20 @@ Get all teams for a specific sport.
 
 Returns a list of all teams for the specified sport ID.
 
-Example:
-- `/mlb/teams` (returns all MLB teams)
+Optional parameters:
+- `season`: Filter teams by a specific season (year).
+
+Examples:
+- `/mlb/teams` (returns all current MLB teams)
+- `/mlb/teams?season=2023` (returns all MLB teams for the 2023 season)
 """,
 )
-async def get_teams(sport_id: int = 1):
+async def get_teams(sport_id: int = 1, season: int = None):
     try:
-        teams = mlb.get_teams(sport_id=sport_id)
+        params = {}
+        if season is not None:
+            params["season"] = season
+        teams = mlb.get_teams(sport_id=sport_id, **params)
         return {"teams": teams}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
