@@ -4,8 +4,8 @@ from mlb_api import router as mlb_router
 from generic_api import router as generic_router
 
 app = FastAPI(
-    title="MCP API Gateway",
-    description="API Gateway for various services including MLB statistics and more",
+    title="MLB API MCP Server",
+    description="Model Context Protocol server providing MLB statistics and baseball data APIs",
     version="0.1.0"
 )
 
