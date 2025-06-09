@@ -783,3 +783,110 @@ async def get_teams(sport_id: int = 1, season: int = None):
         return {"teams": teams}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/game_lineup",
+    operation_id="get_mlb_game_lineup",
+    description="""
+Get lineup information for a specific game by game_id.
+
+Returns detailed lineup information including all players who participated in the game, 
+their positions, batting order, and when they entered the game.
+
+Example:
+- `/mlb/game_lineup?game_id=715793` (returns lineup info for the specified game)
+""",
+)
+async def game_lineup(game_id: int):
+    """
+    Get lineup information for a specific game by game_id.
+
+    Parameters:
+        game_id (int): The game ID for which to retrieve the lineup information.
+
+    Returns:
+        dict: Lineup information for both teams including players, positions, batting order, and game entry details.
+
+    Examples:
+        - Get lineup for a specific game:
+            /mlb/game_lineup?game_id=715793
+    """
+    try:
+        # Get the boxscore data
+        boxscore = mlb.get_game_box_score(game_id)
+        
+        result = {
+            "game_id": game_id,
+            "teams": {}
+        }
+        
+        # Process both teams (away and home)
+        for team_type in ['away', 'home']:
+            if hasattr(boxscore, 'teams') and hasattr(boxscore.teams, team_type):
+                team_data = getattr(boxscore.teams, team_type)
+                
+                team_info = {
+                    "team_name": getattr(team_data.team, 'name', 'Unknown'),
+                    "team_id": getattr(team_data.team, 'id', None),
+                    "players": []
+                }
+                
+                # Get players from the team data
+                if hasattr(team_data, 'players') and team_data.players is not None:
+                    players_dict = team_data.players
+                    
+                    # Extract player information
+                    for player_key, player_data in players_dict.items():
+                        if player_key.startswith('id'):
+                            player_info = {
+                                "player_id": getattr(player_data.person, 'id', None),
+                                "player_name": getattr(player_data.person, 'fullname', 'Unknown'),
+                                "jersey_number": getattr(player_data, 'jerseynumber', None),
+                                "positions": [],
+                                "batting_order": None,
+                                "game_entries": []
+                            }
+                            
+                            # Get position information
+                            if hasattr(player_data, 'allpositions') and player_data.allpositions is not None:
+                                for position in player_data.allpositions:
+                                    position_info = {
+                                        "position": getattr(position, 'abbreviation', None),
+                                        "position_name": getattr(position, 'name', None)
+                                    }
+                                    player_info["positions"].append(position_info)
+                            
+                            # Get batting order from player data directly
+                            if hasattr(player_data, 'battingorder'):
+                                player_info["batting_order"] = getattr(player_data, 'battingorder', None)
+                            
+                            # Get game entry information (substitutions, etc.)
+                            if hasattr(player_data, 'gamestatus'):
+                                game_status = player_data.gamestatus
+                                entry_info = {
+                                    "is_on_bench": getattr(game_status, 'isonbench', False),
+                                    "is_substitute": getattr(game_status, 'issubstitute', False),
+                                    "status": getattr(game_status, 'status', None)
+                                }
+                                player_info["game_entries"].append(entry_info)
+                            
+                            team_info["players"].append(player_info)
+                
+                # Sort players by batting order (starting lineup first, then substitutes)
+                def sort_key(player):
+                    batting_order = player.get("batting_order")
+                    if batting_order is None:
+                        return 999  # Put non-batting order players at the end
+                    return int(str(batting_order).replace('0', ''))  # Handle batting order formatting
+                
+                team_info["players"].sort(key=sort_key)
+                result["teams"][team_type] = team_info
+        
+        return result
+    except Exception as e:
+        print(f"DEBUG: Exception occurred: {str(e)}")
+        print(f"DEBUG: Exception type: {type(e)}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
