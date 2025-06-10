@@ -9,24 +9,49 @@ This MCP server acts as a bridge between AI applications and MLB data sources, e
 ## Features
 
 ### MLB Data Access
-- **Current standings** for all MLB teams
-- **Game schedules** and results 
-- **Player statistics** and information
-- **Team rosters** and details
-- **Live scores** and game data
-- **Historical statistics** and records
+- **Current standings** for all MLB teams with flexible filtering by league, season, and date
+- **Game schedules** and results with date range support
+- **Player statistics** including traditional and sabermetric stats (WAR, wOBA, wRC+)
+- **Team information** and rosters with various roster types
+- **Live game data** including boxscores, linescores, and play-by-play
+- **Game highlights** and scoring plays
+- **Player and team search** functionality
+- **Draft information** and award recipients
+- **Game pace statistics** and lineup information
 
 ### API Endpoints
-- RESTful API interface via FastAPI
-- Comprehensive MLB Stats API integration
-- Real-time and historical data access
-- Structured JSON responses
+
+#### MLB Endpoints (`/mlb/`)
+- `GET /mlb/standings` - Current MLB standings with league and season filters
+- `GET /mlb/schedule` - Game schedules for specific dates, ranges, or teams
+- `GET /mlb/team/{team_id}` - Detailed team information
+- `GET /mlb/player/{player_id}` - Player biographical information
+- `GET /mlb/boxscore` - Complete game boxscores
+- `GET /mlb/linescore` - Inning-by-inning game scores
+- `GET /mlb/game_highlights` - Video highlights for games
+- `GET /mlb/game_scoring_plays` - Play-by-play data with event filtering
+- `GET /mlb/game_pace` - Game duration and pace statistics
+- `GET /mlb/game_lineup` - Detailed lineup information for games
+- `GET /mlb/player_stats` - Traditional player statistics
+- `GET /mlb/sabermetrics` - Advanced sabermetric statistics (WAR, wOBA, etc.)
+- `GET /mlb/roster` - Team rosters with various roster types
+- `GET /mlb/search_players` - Search players by name
+- `GET /mlb/search_teams` - Search teams by name
+- `GET /mlb/players` - All players for a sport/season
+- `GET /mlb/teams` - All teams for a sport/season
+- `GET /mlb/draft/{year}` - Draft information by year
+- `GET /mlb/awards/{award_id}` - Award recipients
+
+#### Generic Endpoints
+- `GET /current_date` - Current date
+- `GET /current_time` - Current time
 
 ### MCP Integration
 - Compatible with MCP-enabled AI applications
-- Tool-based interaction model
+- Tool-based interaction model with comprehensive endpoint descriptions
 - Automatic API documentation generation
 - Schema validation and type safety
+- Full response schema descriptions for better AI integration
 
 ## Installation
 
@@ -55,19 +80,20 @@ The server will start on `http://localhost:8000` with interactive API documentat
 ### MCP Client Integration
 
 This server can be integrated into any MCP-compatible application. The server provides tools for:
-- Retrieving team standings
-- Getting game schedules
-- Accessing player statistics
-- Fetching team information
+- Retrieving team standings and schedules
+- Getting comprehensive player and team statistics
+- Accessing live game data and historical records
+- Searching for players and teams
+- Fetching sabermetric statistics like WAR
 - And much more...
 
 ## API Documentation
 
 Once the server is running, visit `http://localhost:8000/docs` for comprehensive API documentation including:
-- Available endpoints
+- Available endpoints with detailed descriptions
 - Request/response schemas
 - Interactive testing interface
-- Example usage
+- Parameter descriptions and examples
 
 ## Dependencies
 
@@ -81,11 +107,7 @@ This project uses:
 - Python 3.10+
 - FastAPI for the web framework
 - Hatchling for build management
-- MLB Stats API for data access
-
-## Repository Rename
-
-This repository was recently renamed from `mcp` to `mlb-api-mcp` to better reflect its purpose as an MLB-focused MCP server. See [issue #1](../../issues/1) for the full discussion.
+- MLB Stats API for comprehensive baseball data access
 
 ## Contributing
 
