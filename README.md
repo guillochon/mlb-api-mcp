@@ -55,6 +55,8 @@ This MCP server acts as a bridge between AI applications and MLB data sources, e
 
 ## Installation
 
+### Option 1: Local Installation
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/guillochon/mlb-api-mcp.git
@@ -64,6 +66,47 @@ cd mlb-api-mcp
 2. Install dependencies:
 ```bash
 pip install -e .
+```
+
+### Option 2: Docker Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/guillochon/mlb-api-mcp.git
+cd mlb-api-mcp
+```
+
+2. Build the Docker image:
+```bash
+docker build -t mlb-api-mcp .
+```
+
+3. Run the container:
+```bash
+docker run -p 8000:8000 mlb-api-mcp
+```
+
+The server will be available at `http://localhost:8000`.
+
+#### Docker Options
+
+You can also run the container with additional options:
+
+```bash
+# Run in detached mode
+docker run -d -p 8000:8000 --name mlb-api-server mlb-api-mcp
+
+# Run with custom port mapping
+docker run -p 3000:8000 mlb-api-mcp
+
+# View logs
+docker logs mlb-api-server
+
+# Stop the container
+docker stop mlb-api-server
+
+# Remove the container
+docker rm mlb-api-server
 ```
 
 ## Usage
