@@ -1,29 +1,14 @@
-from fastapi import FastAPI
-from fastapi_mcp import FastApiMCP
-from mlb_api import router as mlb_router
-from generic_api import router as generic_router
+from fastmcp import FastMCP
+from mlb_api import setup_mlb_tools
+from generic_api import setup_generic_tools
 
-app = FastAPI(
-    title="MLB API MCP Server",
-    description="Model Context Protocol server providing MLB statistics and baseball data APIs",
-    version="0.1.0"
-)
+# Create FastMCP server instance
+mcp = FastMCP("MLB API MCP Server")
 
-# Initialize MCP server
-mcp = FastApiMCP(app,
-    describe_all_responses=True,
-    describe_full_response_schema=True
-)
-
-# Mount the MCP server
-mcp.mount()
-
-# Include MLB API routes
-app.include_router(mlb_router)
-app.include_router(generic_router)
-
-mcp.setup_server()
+# Setup all MLB and generic tools
+setup_mlb_tools(mcp)
+setup_generic_tools(mcp)
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Run with streamable HTTP transport for web deployment
+    mcp.run(transport="http", host="0.0.0.0", port=8000, path="/mcp")
