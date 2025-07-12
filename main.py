@@ -3,7 +3,7 @@ from mlb_api import setup_mlb_tools
 from generic_api import setup_generic_tools
 
 # Create FastMCP server instance
-mcp = FastMCP("MLB API MCP Server")
+mcp = FastMCP("MLB API MCP Server", stateless_http=True)
 
 # Setup all MLB and generic tools
 setup_mlb_tools(mcp)
