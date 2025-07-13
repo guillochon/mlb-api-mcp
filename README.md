@@ -96,7 +96,9 @@ docker run -e TZ=America/New_York -p 8000:8000 mlb-api-mcp
 
 Replace `America/New_York` with your desired [IANA timezone name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
 
-The server will be available at `http://localhost:8000`.
+The server will be available at `http://localhost:8000` with:
+- **MCP Server**: `http://localhost:8000/mcp/`
+- **Documentation**: `http://localhost:8000/docs`
 
 #### Docker Options
 
@@ -128,7 +130,9 @@ Run the MCP server locally:
 python main.py
 ```
 
-The server will start on `http://localhost:8000` with interactive API documentation available at `http://localhost:8000/docs`.
+The server will start with:
+- **MCP Server** on `http://localhost:8000/mcp/`
+- **Interactive API documentation** available at `http://localhost:8000/docs`
 
 ### MCP Client Integration
 
@@ -147,6 +151,7 @@ Once the server is running, visit `http://localhost:8000/docs` for comprehensive
 - Request/response schemas
 - Interactive testing interface
 - Parameter descriptions and examples
+- List of all available MCP tools at `http://localhost:8000/tools/`
 
 ## Dependencies
 
