@@ -3,7 +3,7 @@
 [![CI Status](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml)
 ![License](https://img.shields.io/github/license/guillochon/mlb-api-mcp)
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides comprehensive access to MLB statistics and baseball data through a FastAPI-based interface.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides comprehensive access to MLB statistics and baseball data through a FastMCP-based interface.
 
 ## Overview
 
@@ -22,32 +22,46 @@ This MCP server acts as a bridge between AI applications and MLB data sources, e
 - **Draft information** and award recipients
 - **Game pace statistics** and lineup information
 
-### API Endpoints
+### MCP Tools
 
-#### MLB Endpoints (`/mlb/`)
-- `GET /mlb/standings` - Current MLB standings with league and season filters
-- `GET /mlb/schedule` - Game schedules for specific dates, ranges, or teams
-- `GET /mlb/team/{team_id}` - Detailed team information
-- `GET /mlb/player/{player_id}` - Player biographical information
-- `GET /mlb/boxscore` - Complete game boxscores
-- `GET /mlb/linescore` - Inning-by-inning game scores
-- `GET /mlb/game_highlights` - Video highlights for games
-- `GET /mlb/game_scoring_plays` - Play-by-play data with event filtering
-- `GET /mlb/game_pace` - Game duration and pace statistics
-- `GET /mlb/game_lineup` - Detailed lineup information for games
-- `GET /mlb/player_stats` - Traditional player statistics
-- `GET /mlb/sabermetrics` - Advanced sabermetric statistics (WAR, wOBA, etc.)
-- `GET /mlb/roster` - Team rosters with various roster types
-- `GET /mlb/search_players` - Search players by name
-- `GET /mlb/search_teams` - Search teams by name
-- `GET /mlb/players` - All players for a sport/season
-- `GET /mlb/teams` - All teams for a sport/season
-- `GET /mlb/draft/{year}` - Draft information by year
-- `GET /mlb/awards/{award_id}` - Award recipients
+All MLB/statistics/game/player/team/etc. functionality is exposed as MCP tools, not as RESTful HTTP endpoints. These tools are accessible via the `/mcp/` endpoint using the MCP protocol. For a list of available tools and their descriptions, visit `/tools/` when the server is running.
 
-#### Generic Endpoints
-- `GET /current_date` - Current date
-- `GET /current_time` - Current time
+#### Key MCP Tools
+- `get_mlb_standings` - Current MLB standings with league and season filters
+- `get_mlb_schedule` - Game schedules for specific dates, ranges, or teams
+- `get_mlb_team_info` - Detailed team information
+- `get_mlb_player_info` - Player biographical information
+- `get_mlb_boxscore` - Complete game boxscores
+- `get_mlb_linescore` - Inning-by-inning game scores
+- `get_mlb_game_highlights` - Video highlights for games
+- `get_mlb_game_scoring_plays` - Play-by-play data with event filtering
+- `get_mlb_game_pace` - Game duration and pace statistics
+- `get_mlb_game_lineup` - Detailed lineup information for games
+- `get_multiple_mlb_player_stats` - Traditional player statistics
+- `get_mlb_sabermetrics` - Advanced sabermetric statistics (WAR, wOBA, etc.)
+- `get_mlb_roster` - Team rosters with various roster types
+- `get_mlb_search_players` - Search players by name
+- `get_mlb_search_teams` - Search teams by name
+- `get_mlb_players` - All players for a sport/season
+- `get_mlb_teams` - All teams for a sport/season
+- `get_mlb_draft` - Draft information by year
+- `get_mlb_awards` - Award recipients
+- `get_current_date` - Current date
+- `get_current_time` - Current time
+
+For the full list and detailed descriptions, see `/tools/` or `/docs` when the server is running.
+
+### HTTP Endpoints
+
+The following HTTP endpoints are available:
+- `/` - Redirects to `/docs`
+- `/docs` - Interactive API documentation and tool listing
+- `/health/` - Health check endpoint
+- `/mcp/info` - MCP server information
+- `/tools/` - List of all available MCP tools
+- `/mcp/` (POST) - MCP protocol endpoint for MCP-compatible clients
+
+> **Note:** There are no RESTful HTTP endpoints for MLB/statistics/game/player/team/etc. All such functionality is accessed via MCP tools through the `/mcp/` endpoint.
 
 ### MCP Integration
 - Compatible with MCP-enabled AI applications
@@ -84,7 +98,7 @@ cd mlb-api-mcp
 docker build -t mlb-api-mcp .
 ```
 
-3. Run the container (default timezone is UTC):
+3. Run the container (default timezone is UTC, uses Python 3.11):
 ```bash
 docker run -p 8000:8000 mlb-api-mcp
 ```
@@ -150,23 +164,24 @@ This server can be integrated into any MCP-compatible application. The server pr
 ## API Documentation
 
 Once the server is running, visit `http://localhost:8000/docs` for comprehensive API documentation including:
-- Available endpoints with detailed descriptions
-- Request/response schemas
+- Available HTTP endpoints
+- List of all available MCP tools at `/tools/`
+- Tool descriptions and parameters
 - Interactive testing interface
 - Parameter descriptions and examples
-- List of all available MCP tools at `http://localhost:8000/tools/`
 
 ## Dependencies
 
-- **FastAPI**: Modern web framework for building APIs
-- **fastapi-mcp**: MCP integration for FastAPI
+- **fastmcp**: MCP-compliant server framework (actual server)
+- **FastAPI**: Required for compatibility (not used as the serving layer)
 - **python-mlb-statsapi**: Official MLB Statistics API wrapper
+- **uvicorn[standard]**: ASGI server for running the app
 
 ## Development
 
 This project uses:
-- Python 3.10+
-- FastAPI for the web framework
+- Python 3.10+ (Docker uses Python 3.11)
+- FastMCP for the web framework
 - Hatchling for build management
 - MLB Stats API for comprehensive baseball data access
 
@@ -183,6 +198,6 @@ This project is open source. Please check the license file for details.
 To run the test suite locally:
 
 ```bash
-pip install -r requirements.txt  # or use poetry install if using Poetry
+pip install -e .
 pytest
 ```
