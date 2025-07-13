@@ -81,10 +81,20 @@ cd mlb-api-mcp
 docker build -t mlb-api-mcp .
 ```
 
-3. Run the container:
+3. Run the container (default timezone is UTC):
 ```bash
 docker run -p 8000:8000 mlb-api-mcp
 ```
+
+#### Setting the Timezone
+
+To run the container in your local timezone, pass the `TZ` environment variable (e.g., for New York):
+
+```bash
+docker run -e TZ=America/New_York -p 8000:8000 mlb-api-mcp
+```
+
+Replace `America/New_York` with your desired [IANA timezone name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
 
 The server will be available at `http://localhost:8000`.
 
