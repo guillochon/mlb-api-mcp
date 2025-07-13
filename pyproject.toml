@@ -19,3 +19,6 @@ packages = ["."]
 
 [tool.hatch.metadata]
 allow-direct-references = true 
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0.0" 
