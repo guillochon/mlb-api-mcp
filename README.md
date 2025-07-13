@@ -83,7 +83,7 @@ docker build -t mlb-api-mcp .
 
 3. Run the container (default timezone is UTC):
 ```bash
-docker run -p 8000:8000 mlb-api-mcp
+docker run -p 8000:8000 -p 8001:8001 mlb-api-mcp
 ```
 
 #### Setting the Timezone
@@ -91,23 +91,25 @@ docker run -p 8000:8000 mlb-api-mcp
 To run the container in your local timezone, pass the `TZ` environment variable (e.g., for New York):
 
 ```bash
-docker run -e TZ=America/New_York -p 8000:8000 mlb-api-mcp
+docker run -e TZ=America/New_York -p 8000:8000 -p 8001:8001 mlb-api-mcp
 ```
 
 Replace `America/New_York` with your desired [IANA timezone name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
 
-The server will be available at `http://localhost:8000`.
+The server will be available at:
+- **MCP Server**: `http://localhost:8000/mcp/`
+- **Documentation**: `http://localhost:8001/docs`
 
 #### Docker Options
 
 You can also run the container with additional options:
 
 ```bash
-# Run in detached mode
-docker run -d -p 8000:8000 --name mlb-api-server mlb-api-mcp
+# Run in detached mode (expose both ports)
+docker run -d -p 8000:8000 -p 8001:8001 --name mlb-api-server mlb-api-mcp
 
 # Run with custom port mapping
-docker run -p 3000:8000 mlb-api-mcp
+docker run -p 3000:8000 -p 3001:8001 mlb-api-mcp
 
 # View logs
 docker logs mlb-api-server
@@ -128,7 +130,9 @@ Run the MCP server locally:
 python main.py
 ```
 
-The server will start on `http://localhost:8000` with interactive API documentation available at `http://localhost:8000/docs`.
+The server will start with:
+- **MCP Server** on `http://localhost:8000/mcp/`
+- **Interactive API documentation** available at `http://localhost:8001/docs`
 
 ### MCP Client Integration
 
@@ -142,11 +146,12 @@ This server can be integrated into any MCP-compatible application. The server pr
 
 ## API Documentation
 
-Once the server is running, visit `http://localhost:8000/docs` for comprehensive API documentation including:
+Once the server is running, visit `http://localhost:8001/docs` for comprehensive API documentation including:
 - Available endpoints with detailed descriptions
 - Request/response schemas
 - Interactive testing interface
 - Parameter descriptions and examples
+- List of all available MCP tools at `http://localhost:8001/tools/`
 
 ## Dependencies
 

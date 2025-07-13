@@ -33,12 +33,12 @@ RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /app
 USER app
 
-# Expose port
-EXPOSE 8000
+# Expose ports
+EXPOSE 8000 8001
 
-# Health check
+# Health check - check both MCP server and docs server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health/ || exit 1
+    CMD curl -f http://localhost:8001/health/ || exit 1
 
 # Command to run the application
 CMD ["python", "main.py"] 
