@@ -49,3 +49,5 @@ Thumbs.db
 # Docker
 Dockerfile*
 .dockerignore 
+tests/ 
+tests/__pycache__/ 

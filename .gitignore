@@ -21,3 +21,6 @@ dist/
 Thumbs.db 
 
 User/
+.pytest_cache/
+.coverage
+tests/__pycache__/

@@ -1,3 +1,5 @@
+[![CI](https://github.com/<your-username>/<your-repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<your-username>/<your-repo>/actions/workflows/ci.yml)
+
 # MLB API MCP Server
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides comprehensive access to MLB statistics and baseball data through a FastAPI-based interface.
@@ -174,3 +176,12 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ## License
 
 This project is open source. Please check the license file for details.
+
+## Running Tests
+
+To run the test suite locally:
+
+```bash
+pip install -r requirements.txt  # or use poetry install if using Poetry
+pytest
+```
