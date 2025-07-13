@@ -101,8 +101,13 @@ def test_get_mlb_game_scoring_plays():
     mlb_api.setup_mlb_tools(mcp)
     get_mlb_game_scoring_plays = get_tool(mcp, 'get_mlb_game_scoring_plays')
     assert get_mlb_game_scoring_plays is not None
+    # Corrected: Each play should be a MagicMock with .result.eventType
+    mock_play1 = MagicMock()
+    mock_play1.result.eventType = 'scoring_play'
+    mock_play2 = MagicMock()
+    mock_play2.result.eventType = 'other'
     mock_plays = MagicMock()
-    mock_plays.allplays = [{'result': MagicMock(eventType='scoring_play')}, {'result': MagicMock(eventType='other')}]  # minimal mock
+    mock_plays.allplays = [mock_play1, mock_play2]
     with patch('mlb_api.mlb.get_game_play_by_play', return_value=mock_plays):
         result = get_mlb_game_scoring_plays(game_id=1, eventType='scoring_play')
         assert 'plays' in result
