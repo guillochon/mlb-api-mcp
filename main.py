@@ -1,5 +1,4 @@
-import json
-
+import os
 from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
@@ -13,30 +12,36 @@ mcp = FastMCP("MLB API MCP Server")
 setup_mlb_tools(mcp)
 setup_generic_tools(mcp)
 
+
 # Add custom routes to the MCP server for documentation and info
 @mcp.custom_route("/", methods=["GET"])
 async def root(request):
     """Root endpoint redirects to documentation"""
     return RedirectResponse(url="/docs")
 
+
 @mcp.custom_route("/health/", methods=["GET"])
 async def health_check(request):
     """Health check endpoint"""
     return JSONResponse({"status": "ok"})
 
+
 @mcp.custom_route("/mcp/info", methods=["GET"])
 async def mcp_info(request):
     """Information about the MCP server"""
     tools_list = await mcp.get_tools()
-    return JSONResponse({
-        "status": "running",
-        "protocol": "mcp",
-        "server_name": "MLB API MCP Server",
-        "description": "Model Context Protocol server for MLB statistics and baseball data",
-        "mcp_endpoint": "/mcp/",
-        "tools_available": len(tools_list),
-        "note": "This is an MCP server. Use MCP-compatible clients to interact with the tools."
-    })
+    return JSONResponse(
+        {
+            "status": "running",
+            "protocol": "mcp",
+            "server_name": "MLB API MCP Server",
+            "description": "Model Context Protocol server for MLB statistics and baseball data",
+            "mcp_endpoint": "/mcp/",
+            "tools_available": len(tools_list),
+            "note": "This is an MCP server. Use MCP-compatible clients to interact with the tools.",
+        }
+    )
+
 
 @mcp.custom_route("/tools/", methods=["GET"])
 async def list_tools(request):
@@ -44,12 +49,16 @@ async def list_tools(request):
     tools = []
     tools_list = await mcp.get_tools()
     for tool_name, tool in tools_list.items():
-        tools.append({
-            "name": tool_name,
-            "description": getattr(tool, 'description', None) or "No description available",
-            "parameters": getattr(tool, 'parameters', None) or {}
-        })
+        tools.append(
+            {
+                "name": tool_name,
+                "description": getattr(tool, "description", None)
+                or "No description available",
+                "parameters": getattr(tool, "parameters", None) or {},
+            }
+        )
     return JSONResponse({"tools": tools})
+
 
 # Add a basic docs endpoint that provides information about available endpoints
 @mcp.custom_route("/docs", methods=["GET"])
@@ -100,8 +109,10 @@ async def docs(request):
         <div class="tools">
     """
     for tool_name, tool in tools_list.items():
-        description = getattr(tool, 'description', None) or "No description available"
-        docs_html += f'<div class="tool"><strong>{tool_name}</strong>: {description}</div>'
+        description = getattr(tool, "description", None) or "No description available"
+        docs_html += (
+            f'<div class="tool"><strong>{tool_name}</strong>: {description}</div>'
+        )
     docs_html += """
         </div>
         
@@ -113,6 +124,7 @@ async def docs(request):
     """
     return HTMLResponse(content=docs_html)
 
+
 if __name__ == "__main__":
     print("Starting MLB API MCP Server on port 8000...")
     print("- Documentation: http://localhost:8000/docs")
@@ -120,12 +132,12 @@ if __name__ == "__main__":
     print("- MCP server info: http://localhost:8000/mcp/info")
     print("- Tools list: http://localhost:8000/tools/")
     print("- MCP protocol: http://localhost:8000/mcp/")
-    
+
     # Run the MCP server with HTTP transport
     mcp.run(
-        transport="http", 
-        host="0.0.0.0", 
-        port=8000, 
-        path="/mcp/", 
-        stateless_http=True
+        transport="http",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "8000")),
+        path="/mcp/",
+        stateless_http=True,
     )
