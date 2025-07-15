@@ -1,4 +1,6 @@
+import argparse
 import os
+
 from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
@@ -126,18 +128,31 @@ async def docs(request):
 
 
 if __name__ == "__main__":
-    print("Starting MLB API MCP Server on port 8000...")
-    print("- Documentation: http://localhost:8000/docs")
-    print("- Health check: http://localhost:8000/health/")
-    print("- MCP server info: http://localhost:8000/mcp/info")
-    print("- Tools list: http://localhost:8000/tools/")
-    print("- MCP protocol: http://localhost:8000/mcp/")
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="MLB API MCP Server")
+    parser.add_argument(
+        "--port", "-p",
+        type=int,
+        default=8000,
+        help="Port to run the server on (default: 8000, env PORT takes priority)"
+    )
+    args = parser.parse_args()
+    
+    # Environment variable takes priority over command line argument
+    port = int(os.environ.get("PORT", args.port))
+    
+    print(f"Starting MLB API MCP Server on port {port}...")
+    print(f"- Documentation: http://localhost:{port}/docs")
+    print(f"- Health check: http://localhost:{port}/health/")
+    print(f"- MCP server info: http://localhost:{port}/mcp/info")
+    print(f"- Tools list: http://localhost:{port}/tools/")
+    print(f"- MCP protocol: http://localhost:{port}/mcp/")
 
     # Run the MCP server with HTTP transport
     mcp.run(
         transport="http",
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", "8000")),
+        port=port,
         path="/mcp/",
         stateless_http=True,
     )
