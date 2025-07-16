@@ -30,22 +30,39 @@ def test_get_mlb_standings(mcp):
     get_mlb_standings = get_tool(mcp, 'get_mlb_standings')
     assert get_mlb_standings is not None
     with patch('mlb_api.mlb.get_standings', return_value={'dummy': 'standings'}):
-        result = get_mlb_standings(season=2022)
+        result = get_mlb_standings(season=2022, start_date='2022-04-01', end_date='2022-04-07')
         assert 'standings' in result
 
 def test_get_mlb_schedule(mcp):
     get_mlb_schedule = get_tool(mcp, 'get_mlb_schedule')
     assert get_mlb_schedule is not None
     with patch('mlb_api.mlb.get_schedule', return_value={'games': []}):
-        result = get_mlb_schedule(date='2022-01-01')
+        # Test with start_date and end_date
+        result = get_mlb_schedule(start_date='2022-04-01', end_date='2022-04-07')
         assert 'schedule' in result
+    with patch('mlb_api.mlb.get_schedule', return_value={'games': []}):
+        # Test with team ID
+        with patch('mlb_api.get_team_id_from_name', return_value=1):
+            result = get_mlb_schedule(start_date='2022-04-01', end_date='2022-04-07', team=1)
+            assert 'schedule' in result
+    with patch('mlb_api.mlb.get_schedule', return_value={'games': []}):
+        # Test with team name
+        with patch('mlb_api.get_team_id_from_name', return_value=1):
+            result = get_mlb_schedule(start_date='2022-04-01', end_date='2022-04-07', team='Yankees')
+            assert 'schedule' in result
 
 def test_get_mlb_team_info(mcp):
     get_mlb_team_info = get_tool(mcp, 'get_mlb_team_info')
     assert get_mlb_team_info is not None
     with patch('mlb_api.mlb.get_team', return_value={'id': 123}):
-        result = get_mlb_team_info(team_id=123)
+        # Test with team ID
+        result = get_mlb_team_info(team=123)
         assert 'team_info' in result
+    with patch('mlb_api.mlb.get_team', return_value={'id': 123}):
+        # Test with team name (patch team ID lookup)
+        with patch('mlb_api.get_team_id_from_name', return_value=123):
+            result = get_mlb_team_info(team='Yankees')
+            assert 'team_info' in result
 
 def test_get_mlb_player_info(mcp):
     get_mlb_player_info = get_tool(mcp, 'get_mlb_player_info')
@@ -117,8 +134,19 @@ def test_get_mlb_roster(mcp):
     get_mlb_roster = get_tool(mcp, 'get_mlb_roster')
     assert get_mlb_roster is not None
     with patch('mlb_api.mlb.get_team_roster', return_value={'roster': True}):
-        result = get_mlb_roster(team_id=1)
+        # Test with team ID
+        result = get_mlb_roster(team=1, start_date='2022-04-01', end_date='2022-04-07')
         assert 'roster' in result or isinstance(result, dict)
+    with patch('mlb_api.mlb.get_team_roster', return_value={'roster': True}):
+        # Test with team name (patch team ID lookup)
+        with patch('mlb_api.get_team_id_from_name', return_value=1):
+            result = get_mlb_roster(team='Yankees', start_date='2022-04-01', end_date='2022-04-07')
+            assert 'roster' in result or isinstance(result, dict)
+    with patch('mlb_api.mlb.get_team_roster', return_value={'roster': True}):
+        # Test with start_date and end_date
+        with patch('mlb_api.get_team_id_from_name', return_value=1):
+            result = get_mlb_roster(team='Yankees', start_date='2022-04-01', end_date='2022-04-07')
+            assert 'roster' in result or isinstance(result, dict)
 
 def test_get_mlb_search_players(mcp):
     get_mlb_search_players = get_tool(mcp, 'get_mlb_search_players')
@@ -154,7 +182,7 @@ def test_get_mlb_search_teams(mcp):
     # Patch open and csv.DictReader for the CSV file
     with patch('builtins.open', create=True) as mock_open:
         mock_open.return_value.__enter__.return_value = MagicMock()
-        with patch('csv.DictReader', return_value=[{'name': 'Yankees', 'abbreviation': 'NYY', 'location': 'New York', 'teamName': 'Yankees'}]):
+        with patch('csv.DictReader', return_value=[{'team_id': '147', 'team_name': 'New York Yankees'}]):
             result = get_mlb_search_teams(team_name='Yankees')
             assert 'teams' in result
 
@@ -177,3 +205,24 @@ def test_get_mlb_game_lineup(mcp):
     with patch('mlb_api.mlb.get_game_box_score', return_value=mock_boxscore):
         result = get_mlb_game_lineup(game_id=1)
         assert 'teams' in result
+
+
+def test_get_statcast_data(mcp):
+    get_statcast_data = get_tool(mcp, 'get_statcast_data')
+    assert get_statcast_data is not None
+    # Mock DataFrame with to_dict
+    class DummyDF:
+        def to_dict(self, orient=None):
+            return [{"foo": "bar"}]
+    # General statcast
+    with patch('mlb_api.statcast', return_value=DummyDF()):
+        result = get_statcast_data(start_date='2022-04-01', end_date='2022-04-07')
+        assert 'statcast_data' in result
+    # Batter statcast
+    with patch('mlb_api.statcast_batter', return_value=DummyDF()):
+        result = get_statcast_data(start_date='2022-04-01', end_date='2022-04-07', player_id=123, pitcher=False)
+        assert 'statcast_data' in result
+    # Pitcher statcast
+    with patch('mlb_api.statcast_pitcher', return_value=DummyDF()):
+        result = get_statcast_data(start_date='2022-04-01', end_date='2022-04-07', player_id=456, pitcher=True)
+        assert 'statcast_data' in result
