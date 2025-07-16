@@ -2,11 +2,14 @@ from datetime import datetime
 from typing import Optional
 
 import mlbstatsapi
+from pybaseball import statcast, statcast_batter, statcast_pitcher
 
 mlb = mlbstatsapi.Mlb()
 
 
-def get_multiple_player_stats(mlb, person_ids: list, stats: list, groups: list, season: int = None, **params) -> dict:
+def get_multiple_player_stats(
+    mlb, person_ids: list, stats: list, groups: list, season: int | None = None, **params
+) -> dict:
     """
     returns stat data for a team
 
@@ -75,7 +78,7 @@ def get_multiple_player_stats(mlb, person_ids: list, stats: list, groups: list, 
 
 
 def get_sabermetrics_for_players(
-    mlb, player_ids: list, season: int, stat_name: str = None, group: str = "hitting"
+    mlb, player_ids: list, season: int, stat_name: str | None = None, group: str = "hitting"
 ) -> dict:
     """
     Get sabermetric statistics (like WAR) for multiple players for a specific season.
@@ -147,6 +150,30 @@ def get_sabermetrics_for_players(
     return result
 
 
+def get_team_id_from_name(team: str) -> int | None:
+    """Helper to get team ID from team name, partial name, or stringified ID."""
+    # Accept stringified integer as ID
+    try:
+        return int(team)
+    except (ValueError, TypeError):
+        pass
+    import csv
+    team_lower = team.lower().strip()
+    with open("current_mlb_teams.csv", "r") as f:
+        reader = csv.DictReader(f)
+        # First, try exact match
+        for row in reader:
+            if team_lower == row["team_name"].lower().strip():
+                return int(row["team_id"])
+        f.seek(0)
+        next(reader)  # skip header
+        # Then, try substring match
+        for row in reader:
+            if team_lower in row["team_name"].lower():
+                return int(row["team_id"])
+    return None
+
+
 def setup_mlb_tools(mcp):
     """Setup MLB tools for the MCP server"""
 
@@ -154,20 +181,23 @@ def setup_mlb_tools(mcp):
     def get_mlb_standings(
         season: Optional[int] = None,
         standingsTypes: Optional[str] = None,
-        date: Optional[str] = None,
+        start_date: str = None,
+        end_date: str = None,
         hydrate: Optional[str] = None,
         fields: Optional[str] = None,
         league: str = "both",
     ) -> dict:
-        """Get current MLB standings for a given season (year).
+        """
+        Get current MLB standings for a given season (year).
 
         Args:
-            season: The year for which to retrieve standings. Defaults to current year.
-            standingsTypes: The type of standings to retrieve (e.g., 'regularSeason', 'wildCard', etc.).
-            date: Specific date (YYYY-MM-DD) for which to retrieve standings.
-            hydrate: Additional data to hydrate in the response.
-            fields: Comma-separated list of fields to include in the response.
-            league: Filter by league. Accepts 'AL', 'NL', or 'both' (default: 'both').
+            season (Optional[int]): The year for which to retrieve standings. Defaults to current year.
+            standingsTypes (Optional[str]): The type of standings to retrieve (e.g., 'regularSeason', 'wildCard', etc.).
+            start_date (str): Start date in 'YYYY-MM-DD' format (required).
+            end_date (str): End date in 'YYYY-MM-DD' format (required).
+            hydrate (Optional[str]): Additional data to hydrate in the response.
+            fields (Optional[str]): Comma-separated list of fields to include in the response.
+            league (str): Filter by league. Accepts 'AL', 'NL', or 'both' (default: 'both').
 
         Returns:
             dict: Standings for the specified league(s) and season.
@@ -178,8 +208,10 @@ def setup_mlb_tools(mcp):
             params = {}
             if standingsTypes is not None:
                 params["standingsTypes"] = standingsTypes
-            if date is not None:
-                params["date"] = date
+            # Use start_date (required)
+            if not start_date:
+                return {"error": "start_date is required"}
+            params["date"] = start_date
             if hydrate is not None:
                 params["hydrate"] = hydrate
             if fields is not None:
@@ -198,27 +230,28 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_schedule(
-        date: str | None = None,
-        start_date: str | None = None,
-        end_date: str | None = None,
+        start_date: str,
+        end_date: str,
         sport_id: int = 1,
-        team_id: int | None = None,
+        team: str | None = None,
     ) -> dict:
-        """Get MLB schedule for a specific date, date range, sport ID, or team ID.
+        """
+        Get MLB schedule for a specific date range, sport ID, or team (ID or name).
 
         Args:
-            date: Specific date (YYYY-MM-DD) for games
-            start_date: Start date for date range (YYYY-MM-DD)
-            end_date: End date for date range (YYYY-MM-DD)
-            sport_id: Sport ID (default: 1 for MLB)
-            team_id: Team ID to filter by specific team
+            start_date (str): Start date in 'YYYY-MM-DD' format (required).
+            end_date (str): End date in 'YYYY-MM-DD' format (required).
+            sport_id (int): Sport ID (default: 1 for MLB).
+            team (Optional[str]): Team ID or team name as a string. Can be numeric string, full name, abbreviation, or location.
 
         Returns:
-            dict: Schedule data for the specified parameters
+            dict: Schedule data for the specified parameters.
         """
         try:
+            team_id = get_team_id_from_name(team) if team is not None else None
+            if not start_date or not end_date:
+                return {"error": "start_date and end_date are required"}
             schedule = mlb.get_schedule(
-                date=date,
                 start_date=start_date,
                 end_date=end_date,
                 sport_id=sport_id,
@@ -230,23 +263,24 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_team_info(
-        team_id: int,
+        team: str,
         season: int | None = None,
         sport_id: int | None = None,
         hydrate: str | None = None,
         fields: str | None = None,
     ) -> dict:
-        """Get information about a specific team by ID.
+        """
+        Get information about a specific team by ID or name.
 
         Args:
-            team_id: The team ID
-            season: Season year
-            sport_id: Sport ID
-            hydrate: Additional data to hydrate
-            fields: Comma-separated list of fields to include
+            team (str): Team ID or team name as a string. Can be numeric string, full name, abbreviation, or location.
+            season (Optional[int]): Season year.
+            sport_id (Optional[int]): Sport ID.
+            hydrate (Optional[str]): Additional data to hydrate.
+            fields (Optional[str]): Comma-separated list of fields to include.
 
         Returns:
-            dict: Team information
+            dict: Team information.
         """
         try:
             params = {}
@@ -258,6 +292,9 @@ def setup_mlb_tools(mcp):
                 params["hydrate"] = hydrate
             if fields is not None:
                 params["fields"] = fields
+            team_id = get_team_id_from_name(team)
+            if team_id is None:
+                return {"error": f"Could not find team ID for '{team}'"}
             team_info = mlb.get_team(team_id, **params)
             return {"team_info": team_info}
         except Exception as e:
@@ -265,13 +302,14 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_player_info(player_id: int) -> dict:
-        """Get information about a specific player by ID.
+        """
+        Get information about a specific player by ID.
 
         Args:
-            player_id: The player ID
+            player_id (int): The player ID.
 
         Returns:
-            dict: Player information
+            dict: Player information.
         """
         try:
             player_info = mlb.get_person(player_id)
@@ -281,15 +319,16 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_boxscore(game_id: int, timecode: str | None = None, fields: str | None = None) -> dict:
-        """Get boxscore for a specific game by game_id.
+        """
+        Get boxscore for a specific game by game_id.
 
         Args:
-            game_id: The game ID
-            timecode: Specific timecode for the boxscore snapshot
-            fields: Comma-separated list of fields to include
+            game_id (int): The game ID.
+            timecode (Optional[str]): Specific timecode for the boxscore snapshot.
+            fields (Optional[str]): Comma-separated list of fields to include.
 
         Returns:
-            dict: Boxscore information
+            dict: Boxscore information.
         """
         try:
             params = {}
@@ -310,17 +349,18 @@ def setup_mlb_tools(mcp):
         season: int | None = None,
         eventType: str | None = None,
     ) -> dict:
-        """Get player stats by comma separated player_ids, group, type, season, and optional eventType.
+        """
+        Get player stats by comma separated player_ids, group, type, season, and optional eventType.
 
         Args:
-            player_ids: Comma-separated list of player IDs
-            group: Stat group (e.g., hitting, pitching)
-            type: Stat type (e.g., season, career)
-            season: Season year
-            eventType: Event type filter
+            player_ids (str): Comma-separated list of player IDs.
+            group (Optional[str]): Stat group (e.g., hitting, pitching).
+            type (Optional[str]): Stat type (e.g., season, career).
+            season (Optional[int]): Season year.
+            eventType (Optional[str]): Event type filter.
 
         Returns:
-            dict: Player statistics
+            dict: Player statistics.
         """
         try:
             player_ids_list = [pid.strip() for pid in player_ids.split(",")]
@@ -335,17 +375,20 @@ def setup_mlb_tools(mcp):
             return {"error": str(e)}
 
     @mcp.tool()
-    def get_mlb_sabermetrics(player_ids: str, season: int, stat_name: str | None = None, group: str = "hitting") -> dict:
-        """Get sabermetric statistics (including WAR) for multiple players for a specific season.
+    def get_mlb_sabermetrics(
+        player_ids: str, season: int, stat_name: str | None = None, group: str = "hitting"
+    ) -> dict:
+        """
+        Get sabermetric statistics (including WAR) for multiple players for a specific season.
 
         Args:
-            player_ids: Comma-separated list of player IDs
-            season: Season year
-            stat_name: Specific sabermetric stat to extract (e.g., 'war', 'woba', 'wRc')
-            group: Stat group ('hitting' or 'pitching')
+            player_ids (str): Comma-separated list of player IDs.
+            season (int): Season year.
+            stat_name (Optional[str]): Specific sabermetric stat to extract (e.g., 'war', 'woba', 'wRc').
+            group (str): Stat group ('hitting' or 'pitching').
 
         Returns:
-            dict: Sabermetric statistics
+            dict: Sabermetric statistics.
         """
         try:
             player_ids_list = [pid.strip() for pid in player_ids.split(",")]
@@ -356,13 +399,14 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_game_highlights(game_id: int) -> dict:
-        """Get game highlights for a specific game by game_id.
+        """
+        Get game highlights for a specific game by game_id.
 
         Args:
-            game_id: The game ID
+            game_id (int): The game ID.
 
         Returns:
-            dict: Game highlights
+            dict: Game highlights.
         """
         try:
             highlights = mlb.get_game(game_id).content.highlights
@@ -372,14 +416,15 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_game_pace(season: int, sport_id: int = 1) -> dict:
-        """Get game pace statistics for a given season.
+        """
+        Get game pace statistics for a given season.
 
         Args:
-            season: Season year
-            sport_id: Sport ID (default: 1 for MLB)
+            season (int): Season year.
+            sport_id (int): Sport ID (default: 1 for MLB).
 
         Returns:
-            dict: Game pace statistics
+            dict: Game pace statistics.
         """
         try:
             gamepace = mlb.get_gamepace(str(season), sport_id=sport_id)
@@ -391,16 +436,17 @@ def setup_mlb_tools(mcp):
     def get_mlb_game_scoring_plays(
         game_id: int, eventType: str | None = None, timecode: str | None = None, fields: str | None = None
     ) -> dict:
-        """Get plays for a specific game by game_id, with optional filtering by eventType.
+        """
+        Get plays for a specific game by game_id, with optional filtering by eventType.
 
         Args:
-            game_id: The game ID
-            eventType: Filter plays by this event type (e.g., 'scoring_play', 'home_run')
-            timecode: Specific timecode for the play-by-play snapshot
-            fields: Comma-separated list of fields to include
+            game_id (int): The game ID.
+            eventType (Optional[str]): Filter plays by this event type (e.g., 'scoring_play', 'home_run').
+            timecode (Optional[str]): Specific timecode for the play-by-play snapshot.
+            fields (Optional[str]): Comma-separated list of fields to include.
 
         Returns:
-            dict: Game plays, optionally filtered by eventType
+            dict: Game plays, optionally filtered by eventType.
         """
         try:
             params = {}
@@ -421,13 +467,14 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_linescore(game_id: int) -> dict:
-        """Get linescore for a specific game by game_id.
+        """
+        Get linescore for a specific game by game_id.
 
         Args:
-            game_id: The game ID
+            game_id (int): The game ID.
 
         Returns:
-            dict: Linescore information
+            dict: Linescore information.
         """
         try:
             linescore = mlb.get_game_line_score(game_id)
@@ -437,25 +484,28 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_roster(
-        team_id: int,
+        team: str,
         rosterType: str | None = None,
         season: str | None = None,
-        date: str | None = None,
+        start_date: str = None,
+        end_date: str = None,
         hydrate: str | None = None,
         fields: str | None = None,
     ) -> dict:
-        """Get team roster for a specific team by team_id, with optional filters.
+        """
+        Get team roster for a specific team (ID or name), with optional filters.
 
         Args:
-            team_id: The team ID
-            rosterType: Filter by roster type (e.g., 40Man, fullSeason, etc.)
-            season: Filter by single season (year)
-            date: Filter by specific date (YYYY-MM-DD)
-            hydrate: Additional data to hydrate in the response
-            fields: Comma-separated list of fields to include
+            team (str): Team ID or team name as a string. Can be numeric string, full name, abbreviation, or location.
+            rosterType (Optional[str]): Filter by roster type (e.g., 40Man, fullSeason, etc.).
+            season (Optional[str]): Filter by single season (year).
+            start_date (str): Start date in 'YYYY-MM-DD' format (required).
+            end_date (str): End date in 'YYYY-MM-DD' format (required).
+            hydrate (Optional[str]): Additional data to hydrate in the response.
+            fields (Optional[str]): Comma-separated list of fields to include.
 
         Returns:
-            dict: Team roster information
+            dict: Team roster information.
         """
         try:
             params = {}
@@ -463,12 +513,16 @@ def setup_mlb_tools(mcp):
                 params["rosterType"] = rosterType
             if season is not None:
                 params["season"] = season
-            if date is not None:
-                params["date"] = date
+            if not start_date:
+                return {"error": "start_date is required"}
+            params["date"] = start_date
             if hydrate is not None:
                 params["hydrate"] = hydrate
             if fields is not None:
                 params["fields"] = fields
+            team_id = get_team_id_from_name(team)
+            if team_id is None:
+                return {"error": f"Could not find team ID for '{team}'"}
             roster = mlb.get_team_roster(team_id, **params)
             return roster
         except Exception as e:
@@ -476,15 +530,16 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_search_players(fullname: str, sport_id: int = 1, search_key: str = "fullname") -> dict:
-        """Search for players by name.
+        """
+        Search for players by name.
 
         Args:
-            fullname: Player name to search for
-            sport_id: Sport ID (default: 1 for MLB)
-            search_key: Search key (default: "fullname")
+            fullname (str): Player name to search for.
+            sport_id (int): Sport ID (default: 1 for MLB).
+            search_key (str): Search key (default: "fullname").
 
         Returns:
-            dict: Player search results
+            dict: Player search results.
         """
         try:
             player_ids = mlb.get_people_id(fullname, sport_id=sport_id, search_key=search_key)
@@ -494,14 +549,15 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_players(sport_id: int = 1, season: int | None = None) -> dict:
-        """Get all players for a specific sport.
+        """
+        Get all players for a specific sport.
 
         Args:
-            sport_id: Sport ID (default: 1 for MLB)
-            season: Filter players by a specific season (year)
+            sport_id (int): Sport ID (default: 1 for MLB).
+            season (Optional[int]): Filter players by a specific season (year).
 
         Returns:
-            dict: All players for the specified sport
+            dict: All players for the specified sport.
         """
         try:
             params = {}
@@ -514,13 +570,14 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_draft(year_id: int) -> dict:
-        """Get draft information for a specific year.
+        """
+        Get draft information for a specific year.
 
         Args:
-            year_id: Draft year
+            year_id (int): Draft year.
 
         Returns:
-            dict: Draft information
+            dict: Draft information.
         """
         try:
             draft = mlb.get_draft(year_id)
@@ -530,13 +587,14 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_awards(award_id: int) -> dict:
-        """Get award recipients for a specific award.
+        """
+        Get award recipients for a specific award.
 
         Args:
-            award_id: Award ID
+            award_id (int): Award ID.
 
         Returns:
-            dict: Award recipients
+            dict: Award recipients.
         """
         try:
             awards = mlb.get_awards(award_id)
@@ -546,14 +604,15 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_search_teams(team_name: str, search_key: str = "name") -> dict:
-        """Search for teams by name.
+        """
+        Search for teams by name or ID.
 
         Args:
-            team_name: Team name to search for
-            search_key: Search key (name, abbreviation, location, or "all")
+            team_name (str): Team name or ID to search for.
+            search_key (str): Search key ("name", "id", or "all").
 
         Returns:
-            dict: Team search results
+            dict: Team search results.
         """
         try:
             import csv
@@ -568,22 +627,16 @@ def setup_mlb_tools(mcp):
             # Search for teams
             results = []
             for team in teams:
-                if search_key == "name":
-                    if team_name.lower() in team["name"].lower():
+                if search_key == "id":
+                    if team_name == team["team_id"]:
                         results.append(team)
-                elif search_key == "abbreviation":
-                    if team_name.lower() in team["abbreviation"].lower():
+                elif search_key == "name":
+                    if team_name.lower() in team["team_name"].lower():
                         results.append(team)
-                elif search_key == "location":
-                    if team_name.lower() in team["location"].lower():
-                        results.append(team)
-                else:
-                    # Search all fields
+                else:  # search_key == "all"
                     if (
-                        team_name.lower() in team["name"].lower()
-                        or team_name.lower() in team["abbreviation"].lower()
-                        or team_name.lower() in team["location"].lower()
-                        or team_name.lower() in team["teamName"].lower()
+                        team_name == team["team_id"]
+                        or team_name.lower() in team["team_name"].lower()
                     ):
                         results.append(team)
 
@@ -593,14 +646,15 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_teams(sport_id: int = 1, season: int | None = None) -> dict:
-        """Get all teams for a specific sport.
+        """
+        Get all teams for a specific sport.
 
         Args:
-            sport_id: Sport ID (default: 1 for MLB)
-            season: Filter teams by a specific season (year)
+            sport_id (int): Sport ID (default: 1 for MLB).
+            season (Optional[int]): Filter teams by a specific season (year).
 
         Returns:
-            dict: All teams for the specified sport
+            dict: All teams for the specified sport.
         """
         try:
             params = {}
@@ -613,13 +667,14 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_game_lineup(game_id: int) -> dict:
-        """Get lineup information for a specific game by game_id.
+        """
+        Get lineup information for a specific game by game_id.
 
         Args:
-            game_id: The game ID
+            game_id (int): The game ID.
 
         Returns:
-            dict: Game lineup information
+            dict: Game lineup information.
         """
         try:
             # Get the boxscore data
@@ -690,5 +745,36 @@ def setup_mlb_tools(mcp):
                     result["teams"][team_type] = team_info
 
             return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    @mcp.tool()
+    def get_statcast_data(
+        start_date: str,
+        end_date: str,
+        player_id: int = None,
+        pitcher: bool = False,
+    ) -> dict:
+        """
+        Get Statcast data for a player (batter or pitcher) or all players over a date range.
+
+        Args:
+            start_date (str): Start date in 'YYYY-MM-DD' format.
+            end_date (str): End date in 'YYYY-MM-DD' format.
+            player_id (int, optional): MLBAM player ID. If None, returns all data for the date range.
+            pitcher (bool): If True, fetches pitcher data; else, batter data.
+
+        Returns:
+            dict: Statcast data as a list of events.
+        """
+        try:
+            if player_id:
+                if pitcher:
+                    data = statcast_pitcher(start_date, end_date, player_id)
+                else:
+                    data = statcast_batter(start_date, end_date, player_id)
+            else:
+                data = statcast(start_date, end_date)
+            return {"statcast_data": data.to_dict(orient="records")}
         except Exception as e:
             return {"error": str(e)}
