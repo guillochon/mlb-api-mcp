@@ -83,15 +83,31 @@ npx -y @smithery/cli install @guillochon/mlb-api-mcp --client claude
 
 ### Option 1: Local Installation
 
-1. Clone the repository:
+1. Install uv if you haven't already:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. Clone the repository:
 ```bash
 git clone https://github.com/guillochon/mlb-api-mcp.git
 cd mlb-api-mcp
 ```
 
-2. Install dependencies:
+3. Create and activate a virtual environment:
+
 ```bash
-pip install -e .
+uv venv
+source .venv/bin/activate  # On Unix/macOS
+# or
+.venv\Scripts\activate  # On Windows
+```
+
+4. Install dependencies:
+
+```bash
+uv pip install -e .
 ```
 
 ### Option 2: Docker Installation
@@ -107,7 +123,7 @@ cd mlb-api-mcp
 docker build -t mlb-api-mcp .
 ```
 
-3. Run the container (default timezone is UTC, uses Python 3.11):
+3. Run the container (default timezone is UTC, uses Python 3.12):
 ```bash
 docker run -p 8000:8000 mlb-api-mcp
 ```
@@ -153,7 +169,11 @@ docker rm mlb-api-server
 
 Run the MCP server locally:
 ```bash
-python main.py
+# For stdio transport (default, for MCP clients like Smithery)
+uv run python main.py
+
+# For HTTP transport (for web access)
+uv run python main.py --http
 ```
 
 The server will start with:
@@ -181,18 +201,43 @@ Once the server is running, visit `http://localhost:8000/docs` for comprehensive
 
 ## Dependencies
 
-- **fastmcp**: MCP-compliant server framework (actual server)
-- **FastAPI**: Required for compatibility (not used as the serving layer)
+- **mcp[cli]**: MCP-compliant server framework with CLI support
+- **FastAPI**: Web framework for HTTP transport
 - **python-mlb-statsapi**: Official MLB Statistics API wrapper
 - **uvicorn[standard]**: ASGI server for running the app
+- **websockets**: WebSocket support (latest version to avoid deprecation warnings)
+- **python-dotenv**: Environment variable management
+- **httpx**: HTTP client for API requests
 
 ## Development
 
 This project uses:
-- Python 3.10+ (Docker uses Python 3.11)
+- Python 3.10+ (Docker uses Python 3.12)
 - FastMCP for the web framework
+- uv for fast Python package management
 - Hatchling for build management
 - MLB Stats API for comprehensive baseball data access
+- Ruff for linting and formatting
+
+### Setup Pre-commit Hooks
+
+1. Install pre-commit:
+
+```bash
+pip install pre-commit
+```
+
+2. Initialize pre-commit hooks:
+
+```bash
+pre-commit install
+```
+
+Now, the linting checks will run automatically whenever you commit code. You can also run them manually:
+
+```bash
+pre-commit run --all-files
+```
 
 ## Contributing
 
@@ -207,6 +252,5 @@ This project is open source. Please check the license file for details.
 To run the test suite locally:
 
 ```bash
-pip install -e .
-pytest
+uv run pytest
 ```
