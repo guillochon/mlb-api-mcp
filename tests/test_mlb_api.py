@@ -30,7 +30,7 @@ def test_get_mlb_standings(mcp):
     get_mlb_standings = get_tool(mcp, 'get_mlb_standings')
     assert get_mlb_standings is not None
     with patch('mlb_api.mlb.get_standings', return_value={'dummy': 'standings'}):
-        result = get_mlb_standings(season=2022, start_date='2022-04-01', end_date='2022-04-07')
+        result = get_mlb_standings(season=2022)
         assert 'standings' in result
 
 def test_get_mlb_schedule(mcp):
@@ -135,17 +135,17 @@ def test_get_mlb_roster(mcp):
     assert get_mlb_roster is not None
     with patch('mlb_api.mlb.get_team_roster', return_value={'roster': True}):
         # Test with team ID
-        result = get_mlb_roster(team=1, start_date='2022-04-01', end_date='2022-04-07')
+        result = get_mlb_roster(team='1', date='2022-04-01')
         assert 'roster' in result or isinstance(result, dict)
     with patch('mlb_api.mlb.get_team_roster', return_value={'roster': True}):
         # Test with team name (patch team ID lookup)
         with patch('mlb_api.get_team_id_from_name', return_value=1):
-            result = get_mlb_roster(team='Yankees', start_date='2022-04-01', end_date='2022-04-07')
+            result = get_mlb_roster(team='Yankees', date='2022-04-01')
             assert 'roster' in result or isinstance(result, dict)
     with patch('mlb_api.mlb.get_team_roster', return_value={'roster': True}):
-        # Test with start_date and end_date
+        # Test with date and rosterType
         with patch('mlb_api.get_team_id_from_name', return_value=1):
-            result = get_mlb_roster(team='Yankees', start_date='2022-04-01', end_date='2022-04-07')
+            result = get_mlb_roster(team='Yankees', date='2022-04-01', rosterType='40Man')
             assert 'roster' in result or isinstance(result, dict)
 
 def test_get_mlb_search_players(mcp):
@@ -207,22 +207,63 @@ def test_get_mlb_game_lineup(mcp):
         assert 'teams' in result
 
 
-def test_get_statcast_data(mcp):
-    get_statcast_data = get_tool(mcp, 'get_statcast_data')
-    assert get_statcast_data is not None
-    # Mock DataFrame with to_dict
+def test_get_statcast_pitcher(mcp):
+    get_statcast_pitcher = get_tool(mcp, 'get_statcast_pitcher')
+    assert get_statcast_pitcher is not None
     class DummyDF:
         def to_dict(self, orient=None):
             return [{"foo": "bar"}]
-    # General statcast
-    with patch('mlb_api.statcast', return_value=DummyDF()):
-        result = get_statcast_data(start_date='2022-04-01', end_date='2022-04-07')
-        assert 'statcast_data' in result
-    # Batter statcast
-    with patch('mlb_api.statcast_batter', return_value=DummyDF()):
-        result = get_statcast_data(start_date='2022-04-01', end_date='2022-04-07', player_id=123, pitcher=False)
-        assert 'statcast_data' in result
-    # Pitcher statcast
+        def astype(self, dtype):
+            return self
     with patch('mlb_api.statcast_pitcher', return_value=DummyDF()):
-        result = get_statcast_data(start_date='2022-04-01', end_date='2022-04-07', player_id=456, pitcher=True)
+        result = get_statcast_pitcher(start_date='2022-04-01', end_date='2022-04-07', player_id=456)
         assert 'statcast_data' in result
+
+def test_get_statcast_batter(mcp):
+    get_statcast_batter = get_tool(mcp, 'get_statcast_batter')
+    assert get_statcast_batter is not None
+    class DummyDF:
+        def to_dict(self, orient=None):
+            return [{"foo": "bar"}]
+        def astype(self, dtype):
+            return self
+    with patch('mlb_api.statcast_batter', return_value=DummyDF()):
+        result = get_statcast_batter(start_date='2022-04-01', end_date='2022-04-07', player_id=123)
+        assert 'statcast_data' in result
+
+def test_get_statcast_team(mcp):
+    get_statcast_team = get_tool(mcp, 'get_statcast_team')
+    assert get_statcast_team is not None
+    class DummyDF:
+        def to_dict(self, orient=None):
+            # Simulate a row with many fields
+            return [
+                {"foo": "bar", "baz": "qux", "batter": "b1", "pitcher": "p1"},
+                {"foo": "bar2", "baz": "qux2", "batter": "b2", "pitcher": "p2"},
+            ]
+        def astype(self, dtype):
+            return self
+    with patch('mlb_api.statcast', return_value=DummyDF()):
+        # Test with one field
+        result = get_statcast_team(start_date='2022-04-01', end_date='2022-04-07', team='Yankees', fields=['foo'])
+        assert 'statcast_data' in result
+        for row in result['statcast_data']:
+            # Only 'foo', 'batter', 'pitcher' should be present
+            assert set(row.keys()).issubset({'foo', 'batter', 'pitcher'})
+            assert 'batter' in row
+            assert 'pitcher' in row
+        # Test with multiple fields
+        result_multi = get_statcast_team(start_date='2022-04-01', end_date='2022-04-07', team='Yankees', fields=['foo', 'baz'])
+        assert 'statcast_data' in result_multi
+        for row in result_multi['statcast_data']:
+            # Only 'foo', 'baz', 'batter', 'pitcher' should be present
+            assert set(row.keys()).issubset({'foo', 'baz', 'batter', 'pitcher'})
+            assert 'batter' in row
+            assert 'pitcher' in row
+        # Test with empty fields list (should only return batter and pitcher)
+        result_empty = get_statcast_team(start_date='2022-04-01', end_date='2022-04-07', team='Yankees', fields=[])
+        assert 'statcast_data' in result_empty
+        for row in result_empty['statcast_data']:
+            assert set(row.keys()).issubset({'batter', 'pitcher'})
+            assert 'batter' in row
+            assert 'pitcher' in row

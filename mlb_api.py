@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import mlbstatsapi
 from pybaseball import statcast, statcast_batter, statcast_pitcher
@@ -8,25 +8,24 @@ mlb = mlbstatsapi.Mlb()
 
 
 def get_multiple_player_stats(
-    mlb, person_ids: list, stats: list, groups: list, season: int | None = None, **params
+    mlb, person_ids: list, stats: list, groups: list, season: Optional[int] = None, **params
 ) -> dict:
     """
     returns stat data for a team
 
     Parameters
     ----------
+    mlb : mlbstatsapi.Mlb
+        The MLB stats API instance
     person_ids : list
         the person ids
     stats : list
         list of stat types. List of statTypes can be found at https://statsapi.mlb.com/api/v1/statTypes
     groups : list
         list of stat grous. List of statGroups can be found at https://statsapi.mlb.com/api/v1/statGroups
-
-    Other Parameters
-    ----------------
-    season : str
+    season : str, optional
         Insert year to return team stats for a particular season, season=2018
-    eventType : str
+    eventType : str, optional
         Notes for individual events for playLog, playlog can be filered by individual events.
         List of eventTypes can be found at https://statsapi.mlb.com/api/v1/eventTypes
 
@@ -78,7 +77,7 @@ def get_multiple_player_stats(
 
 
 def get_sabermetrics_for_players(
-    mlb, player_ids: list, season: int, stat_name: str | None = None, group: str = "hitting"
+    mlb, player_ids: list, season: int, stat_name: Optional[str] = None, group: str = "hitting"
 ) -> dict:
     """
     Get sabermetric statistics (like WAR) for multiple players for a specific season.
@@ -93,7 +92,7 @@ def get_sabermetrics_for_players(
         The season year to get stats for
     stat_name : str, optional
         Specific sabermetric stat to extract (e.g., 'war', 'woba', 'wRc'). If None, returns all sabermetrics.
-    group : str
+    group : str, optional
         The stat group ('hitting' or 'pitching'). Default is 'hitting'.
 
     Returns
@@ -150,7 +149,7 @@ def get_sabermetrics_for_players(
     return result
 
 
-def get_team_id_from_name(team: str) -> int | None:
+def get_team_id_from_name(team: str) -> Optional[int]:
     """Helper to get team ID from team name, partial name, or stringified ID."""
     # Accept stringified integer as ID
     try:
@@ -158,6 +157,7 @@ def get_team_id_from_name(team: str) -> int | None:
     except (ValueError, TypeError):
         pass
     import csv
+
     team_lower = team.lower().strip()
     with open("current_mlb_teams.csv", "r") as f:
         reader = csv.DictReader(f)
@@ -174,6 +174,50 @@ def get_team_id_from_name(team: str) -> int | None:
     return None
 
 
+def get_team_abbreviation_from_name(team: str) -> Optional[str]:
+    """
+    Given a team name, partial name, or ID, return the 3-letter team abbreviation (e.g., 'NYY' for Yankees).
+    Returns None if not found.
+    """
+    team_id = get_team_id_from_name(team)
+    if team_id is None:
+        return None
+    team_info = mlb.get_team(team_id)
+    return getattr(team_info, "abbreviation", None)
+
+
+def check_result_size(result: dict, context: str) -> Optional[dict]:
+    """
+    Utility to check the size of a result dictionary (by word count). Returns an error dict if too large, else None.
+    """
+    import json
+
+    word_count = len(json.dumps(result).split())
+    if word_count > 100000:
+        return {
+            "error": (
+                f"Result too large ({word_count} words). Please narrow your query "
+                f"(e.g., shorter date range, specific {context})."
+            )
+        }
+    return None
+
+
+def validate_date_range(start_date: str, end_date: str) -> Optional[dict]:
+    """
+    Utility to check that start_date is before or equal to end_date.
+    Returns an error dict if invalid, else None.
+    """
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+        if start > end:
+            return {"error": f"start_date ({start_date}) must be before or equal to end_date ({end_date})"}
+    except Exception as e:
+        return {"error": f"Invalid date format: {e}"}
+    return None
+
+
 def setup_mlb_tools(mcp):
     """Setup MLB tools for the MCP server"""
 
@@ -181,8 +225,7 @@ def setup_mlb_tools(mcp):
     def get_mlb_standings(
         season: Optional[int] = None,
         standingsTypes: Optional[str] = None,
-        start_date: str = None,
-        end_date: str = None,
+        date: Optional[str] = None,
         hydrate: Optional[str] = None,
         fields: Optional[str] = None,
         league: str = "both",
@@ -193,8 +236,7 @@ def setup_mlb_tools(mcp):
         Args:
             season (Optional[int]): The year for which to retrieve standings. Defaults to current year.
             standingsTypes (Optional[str]): The type of standings to retrieve (e.g., 'regularSeason', 'wildCard', etc.).
-            start_date (str): Start date in 'YYYY-MM-DD' format (required).
-            end_date (str): End date in 'YYYY-MM-DD' format (required).
+            date (Optional[str]): Date in 'YYYY-MM-DD' format.
             hydrate (Optional[str]): Additional data to hydrate in the response.
             fields (Optional[str]): Comma-separated list of fields to include in the response.
             league (str): Filter by league. Accepts 'AL', 'NL', or 'both' (default: 'both').
@@ -208,10 +250,8 @@ def setup_mlb_tools(mcp):
             params = {}
             if standingsTypes is not None:
                 params["standingsTypes"] = standingsTypes
-            # Use start_date (required)
-            if not start_date:
-                return {"error": "start_date is required"}
-            params["date"] = start_date
+            if date is not None:
+                params["date"] = date
             if hydrate is not None:
                 params["hydrate"] = hydrate
             if fields is not None:
@@ -233,30 +273,40 @@ def setup_mlb_tools(mcp):
         start_date: str,
         end_date: str,
         sport_id: int = 1,
-        team: str | None = None,
+        team: Optional[str] = None,
     ) -> dict:
         """
         Get MLB schedule for a specific date range, sport ID, or team (ID or name).
 
         Args:
-            start_date (str): Start date in 'YYYY-MM-DD' format (required).
-            end_date (str): End date in 'YYYY-MM-DD' format (required).
             sport_id (int): Sport ID (default: 1 for MLB).
-            team (Optional[str]): Team ID or team name as a string. Can be numeric string, full name, abbreviation, or location.
+            start_date (str): Start date in 'YYYY-MM-DD' format. Required.
+            end_date (str): End date in 'YYYY-MM-DD' format. Required.
+            team (Optional[str]): Team ID or team name as a string. Can be numeric string, full name, abbreviation, or
+              location. If not provided, defaults to all teams.
 
         Returns:
             dict: Schedule data for the specified parameters.
         """
         try:
+            # Validate date range
+            date_error = validate_date_range(start_date, end_date)
+            if date_error:
+                return date_error
             team_id = get_team_id_from_name(team) if team is not None else None
-            if not start_date or not end_date:
-                return {"error": "start_date and end_date are required"}
             schedule = mlb.get_schedule(
                 start_date=start_date,
                 end_date=end_date,
                 sport_id=sport_id,
                 team_id=team_id,
             )
+            if not schedule:
+                return {
+                    "error": (
+                        f"No games found for the given date range ({start_date} to {end_date}). The date range may "
+                        "have resulted in nothing being returned."
+                    )
+                }
             return {"schedule": schedule}
         except Exception as e:
             return {"error": str(e)}
@@ -264,10 +314,10 @@ def setup_mlb_tools(mcp):
     @mcp.tool()
     def get_mlb_team_info(
         team: str,
-        season: int | None = None,
-        sport_id: int | None = None,
-        hydrate: str | None = None,
-        fields: str | None = None,
+        season: Optional[int] = None,
+        sport_id: Optional[int] = None,
+        hydrate: Optional[str] = None,
+        fields: Optional[str] = None,
     ) -> dict:
         """
         Get information about a specific team by ID or name.
@@ -318,7 +368,7 @@ def setup_mlb_tools(mcp):
             return {"error": str(e)}
 
     @mcp.tool()
-    def get_mlb_boxscore(game_id: int, timecode: str | None = None, fields: str | None = None) -> dict:
+    def get_mlb_boxscore(game_id: int, timecode: Optional[str] = None, fields: Optional[str] = None) -> dict:
         """
         Get boxscore for a specific game by game_id.
 
@@ -344,10 +394,10 @@ def setup_mlb_tools(mcp):
     @mcp.tool()
     def get_multiple_mlb_player_stats(
         player_ids: str,
-        group: str | None = None,
-        type: str | None = None,
-        season: int | None = None,
-        eventType: str | None = None,
+        group: Optional[str] = None,
+        type: Optional[str] = None,
+        season: Optional[int] = None,
+        eventType: Optional[str] = None,
     ) -> dict:
         """
         Get player stats by comma separated player_ids, group, type, season, and optional eventType.
@@ -376,7 +426,7 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_sabermetrics(
-        player_ids: str, season: int, stat_name: str | None = None, group: str = "hitting"
+        player_ids: str, season: int, stat_name: Optional[str] = None, group: str = "hitting"
     ) -> dict:
         """
         Get sabermetric statistics (including WAR) for multiple players for a specific season.
@@ -434,7 +484,7 @@ def setup_mlb_tools(mcp):
 
     @mcp.tool()
     def get_mlb_game_scoring_plays(
-        game_id: int, eventType: str | None = None, timecode: str | None = None, fields: str | None = None
+        game_id: int, eventType: Optional[str] = None, timecode: Optional[str] = None, fields: Optional[str] = None
     ) -> dict:
         """
         Get plays for a specific game by game_id, with optional filtering by eventType.
@@ -485,22 +535,20 @@ def setup_mlb_tools(mcp):
     @mcp.tool()
     def get_mlb_roster(
         team: str,
-        rosterType: str | None = None,
-        season: str | None = None,
-        start_date: str = None,
-        end_date: str = None,
-        hydrate: str | None = None,
-        fields: str | None = None,
+        date: Optional[str] = None,
+        rosterType: Optional[str] = None,
+        season: Optional[str] = None,
+        hydrate: Optional[str] = None,
+        fields: Optional[str] = None,
     ) -> dict:
         """
         Get team roster for a specific team (ID or name), with optional filters.
 
         Args:
             team (str): Team ID or team name as a string. Can be numeric string, full name, abbreviation, or location.
+            date (Optional[str]): Date in 'YYYY-MM-DD' format. If not provided, defaults to today.
             rosterType (Optional[str]): Filter by roster type (e.g., 40Man, fullSeason, etc.).
             season (Optional[str]): Filter by single season (year).
-            start_date (str): Start date in 'YYYY-MM-DD' format (required).
-            end_date (str): End date in 'YYYY-MM-DD' format (required).
             hydrate (Optional[str]): Additional data to hydrate in the response.
             fields (Optional[str]): Comma-separated list of fields to include.
 
@@ -508,14 +556,14 @@ def setup_mlb_tools(mcp):
             dict: Team roster information.
         """
         try:
+            if date is None:
+                date = datetime.now().strftime("%Y-%m-%d")
             params = {}
             if rosterType is not None:
                 params["rosterType"] = rosterType
             if season is not None:
                 params["season"] = season
-            if not start_date:
-                return {"error": "start_date is required"}
-            params["date"] = start_date
+            params["date"] = date
             if hydrate is not None:
                 params["hydrate"] = hydrate
             if fields is not None:
@@ -548,7 +596,7 @@ def setup_mlb_tools(mcp):
             return {"error": str(e)}
 
     @mcp.tool()
-    def get_mlb_players(sport_id: int = 1, season: int | None = None) -> dict:
+    def get_mlb_players(sport_id: int = 1, season: Optional[int] = None) -> dict:
         """
         Get all players for a specific sport.
 
@@ -634,10 +682,7 @@ def setup_mlb_tools(mcp):
                     if team_name.lower() in team["team_name"].lower():
                         results.append(team)
                 else:  # search_key == "all"
-                    if (
-                        team_name == team["team_id"]
-                        or team_name.lower() in team["team_name"].lower()
-                    ):
+                    if team_name == team["team_id"] or team_name.lower() in team["team_name"].lower():
                         results.append(team)
 
             return {"teams": results}
@@ -645,7 +690,7 @@ def setup_mlb_tools(mcp):
             return {"error": str(e)}
 
     @mcp.tool()
-    def get_mlb_teams(sport_id: int = 1, season: int | None = None) -> dict:
+    def get_mlb_teams(sport_id: int = 1, season: Optional[int] = None) -> dict:
         """
         Get all teams for a specific sport.
 
@@ -749,32 +794,187 @@ def setup_mlb_tools(mcp):
             return {"error": str(e)}
 
     @mcp.tool()
-    def get_statcast_data(
+    def get_statcast_pitcher(
+        player_id: int,
         start_date: str,
         end_date: str,
-        player_id: int = None,
-        pitcher: bool = False,
     ) -> dict:
         """
-        Get Statcast data for a player (batter or pitcher) or all players over a date range.
+        Retrieve MLB Statcast data for a single pitcher over a date range.
 
-        Args:
-            start_date (str): Start date in 'YYYY-MM-DD' format.
-            end_date (str): End date in 'YYYY-MM-DD' format.
-            player_id (int, optional): MLBAM player ID. If None, returns all data for the date range.
-            pitcher (bool): If True, fetches pitcher data; else, batter data.
+        Parameters
+        ----------
+        player_id : int
+            MLBAM ID of the pitcher.
+        start_date : str
+            The start date in 'YYYY-MM-DD' format. Required.
+        end_date : str
+            The end date in 'YYYY-MM-DD' format. Required.
 
-        Returns:
-            dict: Statcast data as a list of events.
+        Returns
+        -------
+        dict
+            Dictionary with Statcast data for the pitcher. If the result is too large, returns an error message.
+
+        Notes
+        -----
+        Data is sourced from MLB Statcast via pybaseball. See the official documentation for more details:
+        https://github.com/jldbc/pybaseball/tree/master/docs
         """
         try:
-            if player_id:
-                if pitcher:
-                    data = statcast_pitcher(start_date, end_date, player_id)
-                else:
-                    data = statcast_batter(start_date, end_date, player_id)
-            else:
-                data = statcast(start_date, end_date)
-            return {"statcast_data": data.to_dict(orient="records")}
+            # Validate date range
+            date_error = validate_date_range(start_date, end_date)
+            if date_error:
+                return date_error
+            data = statcast_pitcher(start_date, end_date, player_id)
+            # Convert all columns to string to ensure JSON serializability
+            data = data.astype(str)
+            result = {"statcast_data": data.to_dict(orient="records")}
+            if not result["statcast_data"]:
+                return {
+                    "error": (
+                        f"No Statcast data found for the given date range ({start_date} to {end_date}). The date "
+                        "range may have resulted in nothing being returned."
+                    )
+                }
+            size_error = check_result_size(result, "player")
+            if size_error:
+                return size_error
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    @mcp.tool()
+    def get_statcast_batter(
+        player_id: int,
+        start_date: str,
+        end_date: str,
+    ) -> dict:
+        """
+        Retrieve MLB Statcast data for a single batter over a date range.
+
+        Parameters
+        ----------
+        player_id : int
+            MLBAM ID of the batter.
+        start_date : str
+            The start date in 'YYYY-MM-DD' format. Required.
+        end_date : str
+            The end date in 'YYYY-MM-DD' format. Required.
+
+        Returns
+        -------
+        dict
+            Dictionary with Statcast data for the batter. If the result is too large, returns an error message.
+
+        Notes
+        -----
+        Data is sourced from MLB Statcast via pybaseball. See the official documentation for more details:
+        https://github.com/jldbc/pybaseball/tree/master/docs
+        """
+        try:
+            # Validate date range
+            date_error = validate_date_range(start_date, end_date)
+            if date_error:
+                return date_error
+            data = statcast_batter(start_date, end_date, player_id)
+            # Convert all columns to string to ensure JSON serializability
+            data = data.astype(str)
+            result = {"statcast_data": data.to_dict(orient="records")}
+            if not result["statcast_data"]:
+                return {
+                    "error": (
+                        f"No Statcast data found for the given date range ({start_date} to {end_date}). The date "
+                        "range may have resulted in nothing being returned."
+                    )
+                }
+            size_error = check_result_size(result, "player")
+            if size_error:
+                return size_error
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    @mcp.tool()
+    def get_statcast_team(
+        team: str,
+        start_date: str,
+        end_date: str,
+        fields: List[str],
+    ) -> dict:
+        """
+        Retrieve MLB Statcast data for all players on a team over a date range.
+
+        Parameters
+        ----------
+        team : str
+            Team ID or team name (see MLB team list for valid values).
+        start_date : str
+            The start date in 'YYYY-MM-DD' format. Required.
+        end_date : str
+            The end date in 'YYYY-MM-DD' format. Required.
+        fields: List[str]
+            The field to return. If not provided, defaults to all fields. Available fields:
+                 pitch_type, game_date, release_speed, release_pos_x, release_pos_z, player_name, batter, pitcher,
+                 events, description, spin_dir, spin_rate_deprecated, break_angle_deprecated, break_length_deprecated,
+                 zone, des, game_type, stand, p_throws, home_team, away_team, type, hit_location, bb_type, balls,
+                 strikes, game_year, pfx_x, pfx_z, plate_x, plate_z, on_3b, on_2b, on_1b, outs_when_up, inning,
+                 inning_topbot, hc_x, hc_y, tfs_deprecated, tfs_zulu_deprecated, umpire, sv_id, vx0, vy0, vz0, ax, ay,
+                 az, sz_top, sz_bot, hit_distance_sc, launch_speed, launch_angle, effective_speed, release_spin_rate,
+                 release_extension, game_pk, fielder_2, fielder_3, fielder_4, fielder_5, fielder_6, fielder_7,
+                 fielder_8, fielder_9, release_pos_y, estimated_ba_using_speedangle,
+                 estimated_woba_using_speedangle, woba_value, woba_denom, babip_value, iso_value, launch_speed_angle,
+                 at_bat_number, pitch_number, pitch_name, home_score, away_score, bat_score, fld_score,
+                 post_away_score, post_home_score, post_bat_score, post_fld_score, if_fielding_alignment,
+                 of_fielding_alignment, spin_axis, delta_home_win_exp, delta_run_exp, bat_speed, swing_length,
+                 estimated_slg_using_speedangle, delta_pitcher_run_exp, hyper_speed, home_score_diff, bat_score_diff,
+                 home_win_exp, bat_win_exp, age_pit_legacy, age_bat_legacy, age_pit, age_bat, n_thruorder_pitcher,
+                 n_priorpa_thisgame_player_at_bat, pitcher_days_since_prev_game, batter_days_since_prev_game,
+                 pitcher_days_until_next_game, batter_days_until_next_game, api_break_z_with_gravity,
+                 api_break_x_arm, api_break_x_batter_in, arm_angle, attack_angle, attack_direction, swing_path_tilt,
+                 intercept_ball_minus_batter_pos_x_inches, intercept_ball_minus_batter_pos_y_inches
+        Returns
+        -------
+        dict
+            Dictionary with Statcast data for all players on the team. If the result is too large, returns an error
+            message.
+        Notes
+        -----
+        This uses the pybaseball `statcast` function, which returns all Statcast events for the specified team and date
+        range. See the official documentation for more details:
+        https://github.com/jldbc/pybaseball/tree/master/docs
+        """
+        try:
+            # Validate date range
+            date_error = validate_date_range(start_date, end_date)
+            if date_error:
+                return date_error
+            abbreviation = get_team_abbreviation_from_name(team)
+            if not abbreviation:
+                return {"error": f"Could not find 3-letter abbreviation for team '{team}'"}
+            data = statcast(start_date, end_date, team=abbreviation)
+            # Convert all columns to string to ensure JSON serializability
+            data = data.astype(str)
+            records = data.to_dict(orient="records")
+            # Always include batter and pitcher, plus all requested fields
+            filtered_records = []
+            for row in records:
+                filtered_row = {}
+                for key in ["batter", "pitcher", *list(fields)]:
+                    if key in row:
+                        filtered_row[key] = row[key]
+                filtered_records.append(filtered_row)
+            result = {"statcast_data": filtered_records}
+            if not result["statcast_data"]:
+                return {
+                    "error": (
+                        f"No Statcast data found for the given date range ({start_date} to {end_date}). The date "
+                        "range may have resulted in nothing being returned."
+                    )
+                }
+            size_error = check_result_size(result, "team")
+            if size_error:
+                return size_error
+            return result
         except Exception as e:
             return {"error": str(e)}
