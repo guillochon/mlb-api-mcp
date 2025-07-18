@@ -22,7 +22,6 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
-        uv pip install pytest
-        uv pip install .
+        uv sync --dev
     - name: Run tests
-      run: pytest 
+      run: uv run pytest 
