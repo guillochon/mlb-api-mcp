@@ -12,18 +12,17 @@ dependencies = [
     "fastapi>=0.115.12",
     "python-mlb-statsapi>=0.5.26",
     "uvicorn[standard]>=0.24.0",
-    "websockets>=12.0",
-    "python-dotenv>=1.0.0",
-    "httpx>=0.24.0",
-    "pybaseball>=2.2.7",  # Added for Statcast support
+    "pybaseball>=2.2.7",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
     "ruff>=0.0.292",
     "pre-commit>=3.5.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -55,10 +54,7 @@ extend-exclude = [
 [tool.ruff.isort]
 known-first-party = ["mlb_api_mcp"]
 
-[dependency-groups]
-dev = [
-    "ruff>=0.11.4",
-]
+
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
