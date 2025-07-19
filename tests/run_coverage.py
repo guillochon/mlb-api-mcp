@@ -44,8 +44,8 @@ def main():
     parser.add_argument(
         "--fail-under",
         type=int,
-        default=80,
-        help="Minimum coverage percentage (default: 80)"
+        default=85,
+        help="Minimum coverage percentage (default: 85)"
     )
     
     args = parser.parse_args()
