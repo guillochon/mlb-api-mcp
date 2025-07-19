@@ -31,14 +31,7 @@ jobs:
     - name: Run tests with coverage
       run: uv run pytest --cov-report=xml
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: false
-
     - name: Generate coverage badge
-      if: github.ref == 'refs/heads/main'
       run: |
         # Extract coverage percentage from XML
         COVERAGE=$(python -c "
@@ -55,9 +48,16 @@ jobs:
         # Update README.md with new badge URL
         sed -i "s|https://img.shields.io/badge/coverage-[0-9.]*%25-brightgreen|${BADGE_URL}|g" README.md
         
+        # Get the current branch name
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BRANCH_NAME="${{ github.head_ref }}"
+        else
+          BRANCH_NAME="${{ github.ref_name }}"
+        fi
+        
         # Commit and push if changes were made
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add README.md
         git diff --staged --quiet || git commit -m "Update coverage badge to ${COVERAGE}%"
-        git push origin HEAD:main 
+        git push origin HEAD:${BRANCH_NAME} 
