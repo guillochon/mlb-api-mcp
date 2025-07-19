@@ -3,7 +3,7 @@ import os
 import warnings
 
 import uvicorn
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from generic_api import setup_generic_tools
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
         # Run the MCP server with HTTP transport using uvicorn
         uvicorn.run(
-            mcp.streamable_http_app(),
+            mcp.http_app(),
             host="0.0.0.0",
             port=port,
             log_level="info"
