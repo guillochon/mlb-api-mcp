@@ -60,4 +60,10 @@ jobs:
         git config --local user.name "GitHub Action"
         git add README.md
         git diff --staged --quiet || git commit -m "Update coverage badge to ${COVERAGE}%"
-        git push origin HEAD:${BRANCH_NAME} 
+        
+        # Try to push, and if it fails, pull and try again
+        if ! git push origin HEAD:${BRANCH_NAME}; then
+          echo "Push failed, pulling latest changes and retrying..."
+          git pull origin ${BRANCH_NAME} --rebase || git pull origin ${BRANCH_NAME} --no-rebase
+          git push origin HEAD:${BRANCH_NAME}
+        fi 
