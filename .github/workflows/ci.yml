@@ -23,5 +23,35 @@ jobs:
       run: |
         pip install uv
         uv sync --extra test
-    - name: Run tests
-      run: uv run pytest 
+    - name: Run tests with coverage
+      run: uv run pytest --cov=mlb_api --cov=generic_api --cov-report=term-missing --cov-report=xml --cov-fail-under=80
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+    - name: Generate coverage badge
+      run: |
+        # Extract coverage percentage from XML
+        COVERAGE=$(python -c "
+        import xml.etree.ElementTree as ET
+        tree = ET.parse('coverage.xml')
+        root = tree.getroot()
+        coverage = float(root.attrib['line-rate']) * 100
+        print(f'{coverage:.2f}')
+        ")
+        
+        # Create shields.io badge URL
+        BADGE_URL="https://img.shields.io/badge/coverage-${COVERAGE}%25-brightgreen"
+        
+        # Update README.md with new badge URL
+        sed -i "s|https://img.shields.io/badge/coverage-[0-9.]*%25-brightgreen|${BADGE_URL}|g" README.md
+        
+        # Commit and push if changes were made
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git diff --staged --quiet || git commit -m "Update coverage badge to ${COVERAGE}%"
+        git push 

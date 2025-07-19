@@ -23,6 +23,8 @@ dev = [
 test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "coverage>=7.3.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -69,4 +71,38 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning:websockets.*",
     "ignore::DeprecationWarning:uvicorn.protocols.websockets.*",
-] 
+]
+addopts = [
+    "--cov=mlb_api",
+    "--cov=generic_api",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=80",
+]
+
+[tool.coverage.run]
+source = ["mlb_api.py", "generic_api.py"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+precision = 2 
