@@ -36,6 +36,14 @@ allow-direct-references = true
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-exclude = [
+    ".venv",
+    "__pycache__",
+    ".git",
+    ".pytest_cache",
+]
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -46,19 +54,11 @@ select = [
     "RUF", # Ruff-specific rules
 ]
 ignore = []
-extend-exclude = [
-    ".venv",
-    "__pycache__",
-    ".git",
-    ".pytest_cache",
-]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["mlb_api_mcp"]
 
-
-
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "**/tests/**" = ["E501"]
 "main.py" = ["E501", "W293"]
@@ -105,4 +105,9 @@ exclude_lines = [
     "@(abc\\.)?abstractmethod",
 ]
 show_missing = true
-precision = 2 
+precision = 2
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]
