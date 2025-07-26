@@ -24,3 +24,8 @@ User/
 .pytest_cache/
 .coverage
 tests/__pycache__/
+
+# Coverage reports
+htmlcov/
+coverage.xml
+.coverage.*

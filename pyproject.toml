@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "MLB API MCP Server - Model Context Protocol server for MLB statistics and baseball data"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp[cli]>=1.2.0",
+    "fastmcp>=2.10.6",
     "fastapi>=0.115.12",
     "python-mlb-statsapi>=0.5.26",
     "uvicorn[standard]>=0.24.0",
@@ -23,6 +23,8 @@ dev = [
 test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "coverage>=7.3.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -34,6 +36,14 @@ allow-direct-references = true
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-exclude = [
+    ".venv",
+    "__pycache__",
+    ".git",
+    ".pytest_cache",
+]
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -44,19 +54,11 @@ select = [
     "RUF", # Ruff-specific rules
 ]
 ignore = []
-extend-exclude = [
-    ".venv",
-    "__pycache__",
-    ".git",
-    ".pytest_cache",
-]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["mlb_api_mcp"]
 
-
-
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "**/tests/**" = ["E501"]
 "main.py" = ["E501", "W293"]
@@ -69,4 +71,43 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning:websockets.*",
     "ignore::DeprecationWarning:uvicorn.protocols.websockets.*",
-] 
+]
+addopts = [
+    "--cov=mlb_api",
+    "--cov=generic_api",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=80",
+]
+
+[tool.coverage.run]
+source = ["mlb_api.py", "generic_api.py"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+precision = 2
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]

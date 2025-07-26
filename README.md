@@ -3,6 +3,7 @@
 [![CI Status](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml)
 ![License](https://img.shields.io/github/license/guillochon/mlb-api-mcp)
 [![smithery badge](https://smithery.ai/badge/@guillochon/mlb-api-mcp)](https://smithery.ai/server/@guillochon/mlb-api-mcp)
+![Coverage](https://img.shields.io/badge/coverage-86.27%25-brightgreen)
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides comprehensive access to MLB statistics and baseball data through a FastMCP-based interface.
 
@@ -247,10 +248,72 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 This project is open source. Please check the license file for details.
 
-## Running Tests
+## Testing
 
-To run the test suite locally:
+This project includes comprehensive test coverage with pytest and coverage reporting.
+
+### Running Tests
 
 ```bash
+# Run all tests with coverage (default)
 uv run pytest
+
+# Run tests with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_mlb_api.py
+
+# Run specific test function
+uv run pytest tests/test_mlb_api.py::test_get_mlb_standings
+
+# Run tests without coverage
+uv run tests/run_coverage.py test
+
+# Generate HTML coverage report
+uv run tests/run_coverage.py html
+
+# Clean up coverage files
+uv run tests/run_coverage.py clean
+```
+
+### Coverage
+
+- **Current Coverage**: 86.27% (exceeds 80% threshold)
+- **Coverage Source**: `mlb_api.py` and `generic_api.py`
+- **Reports**: Terminal output, HTML (`htmlcov/index.html`), and XML (`coverage.xml`)
+- **CI Integration**: Coverage checking and badge updates run automatically on every push/PR
+
+### Test Structure
+
+The test suite includes:
+- **Unit tests** for all MCP tools (MLB API and Generic API)
+- **Error handling tests** for API failures
+- **Edge case tests** for boundary conditions
+- **Mock-based tests** to avoid external API calls
+
+### Adding New Tests
+
+When adding new functionality:
+
+1. Add corresponding test cases to `tests/test_mlb_api.py`
+2. Include both success and error scenarios
+3. Use mocking to avoid external dependencies
+4. Ensure coverage remains above 80%
+
+Example test structure:
+```python
+def test_new_function_success(mcp):
+    """Test successful execution of new function"""
+    new_function = get_tool(mcp, 'new_function')
+    with patch('mlb_api.external_api_call', return_value={'data': 'success'}):
+        result = new_function(param='value')
+        assert 'data' in result
+
+def test_new_function_error_handling(mcp):
+    """Test error handling in new function"""
+    new_function = get_tool(mcp, 'new_function')
+    with patch('mlb_api.external_api_call', side_effect=Exception("API Error")):
+        result = new_function(param='value')
+        assert 'error' in result
 ```

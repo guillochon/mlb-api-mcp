@@ -3,7 +3,7 @@ import os
 import warnings
 
 import uvicorn
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.middleware.cors import CORSMiddleware
 
