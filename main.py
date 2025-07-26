@@ -1,7 +1,6 @@
 import argparse
 import os
 import warnings
-import logging
 
 import uvicorn
 from mcp.server.fastmcp import FastMCP
@@ -15,10 +14,6 @@ from mlb_api import setup_mlb_tools
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="websockets")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="uvicorn.protocols.websockets")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # Create FastMCP server instance
 mcp = FastMCP("MLB API MCP Server")
 
@@ -30,21 +25,18 @@ setup_generic_tools(mcp)
 @mcp.custom_route("/", methods=["GET"])
 async def root(request):
     """Root endpoint redirects to documentation"""
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
     return RedirectResponse(url="/docs")
 
 
 @mcp.custom_route("/health", methods=["GET"])
 async def health_check(request):
     """Health check endpoint"""
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
     return JSONResponse({"status": "ok"})
 
 
 @mcp.custom_route("/info", methods=["GET"])
 async def mcp_info(request):
     """Information about the MCP server"""
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
     tools_list = await mcp.get_tools()
     return JSONResponse(
         {
@@ -62,7 +54,6 @@ async def mcp_info(request):
 @mcp.custom_route("/tools", methods=["GET"])
 async def list_tools(request):
     """List available MCP tools"""
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
     tools = []
     tools_list = await mcp.get_tools()
     for tool_name, tool in tools_list.items():
@@ -80,7 +71,6 @@ async def list_tools(request):
 @mcp.custom_route("/docs", methods=["GET"])
 async def docs(request):
     """Basic documentation endpoint"""
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
     tools_list = await mcp.get_tools()
     docs_html = f"""
     <!DOCTYPE html>
