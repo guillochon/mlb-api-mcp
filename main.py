@@ -5,6 +5,7 @@ import warnings
 import uvicorn
 from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.middleware.cors import CORSMiddleware
 
 from generic_api import setup_generic_tools
 from mlb_api import setup_mlb_tools
@@ -19,7 +20,6 @@ mcp = FastMCP("MLB API MCP Server")
 # Setup all MLB and generic tools
 setup_mlb_tools(mcp)
 setup_generic_tools(mcp)
-
 
 # Add custom routes to the MCP server for documentation and info
 @mcp.custom_route("/", methods=["GET"])
@@ -66,7 +66,6 @@ async def list_tools(request):
             }
         )
     return JSONResponse({"tools": tools})
-
 
 # Add a basic docs endpoint that provides information about available endpoints
 @mcp.custom_route("/docs", methods=["GET"])
@@ -132,10 +131,6 @@ async def docs(request):
     """
     return HTMLResponse(content=docs_html)
 
-
-
-
-
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="MLB API MCP Server")
@@ -163,9 +158,23 @@ if __name__ == "__main__":
         print(f"- Tools list: http://localhost:{port}/tools")
         print(f"- MCP protocol: http://localhost:{port}/mcp/")
 
+        # Get the Starlette app and add CORS middleware
+        app = mcp.streamable_http_app()
+        
+        # Add CORS middleware with proper header exposure for MCP session management
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # Configure this more restrictively in production
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["mcp-session-id"],  # Allow client to read session ID
+            max_age=86400,
+        )
+
         # Run the MCP server with HTTP transport using uvicorn
         uvicorn.run(
-            mcp.http_app(),
+            app,
             host="0.0.0.0",
             port=port,
             log_level="info"
