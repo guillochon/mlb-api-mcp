@@ -3,6 +3,7 @@ import os
 import warnings
 
 import uvicorn
+import fastmcp
 from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -44,7 +45,7 @@ async def mcp_info(request):
             "protocol": "mcp",
             "server_name": "MLB API MCP Server",
             "description": "Model Context Protocol server for MLB statistics and baseball data",
-            "mcp_endpoint": "/mcp/",
+            "mcp_endpoint": "/mcp",
             "tools_available": len(tools_list),
             "note": "This is an MCP server. Use MCP-compatible clients to interact with the tools.",
         }
@@ -108,7 +109,7 @@ async def docs(request):
         </div>
         
         <div class="endpoint">
-            <span class="method">POST</span> <span class="path">/mcp/</span>
+            <span class="method">POST</span> <span class="path">/mcp</span>
             <p>MCP protocol endpoint for MCP-compatible clients</p>
         </div>
         
@@ -156,7 +157,40 @@ if __name__ == "__main__":
         print(f"- Health check: http://localhost:{port}/health")
         print(f"- MCP server info: http://localhost:{port}/info")
         print(f"- Tools list: http://localhost:{port}/tools")
-        print(f"- MCP protocol: http://localhost:{port}/mcp/")
+        print(f"- MCP protocol: http://localhost:{port}/mcp")
+
+        # Create CORS middleware configuration
+        from starlette.middleware import Middleware
+        
+        cors_middleware = Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # Configure this more restrictively in production
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["mcp-session-id"],  # Allow client to read session ID
+            max_age=86400,
+        )
+
+        # Get the Starlette app with CORS middleware (using modern http_app method)
+        # Note: FastMCP uses Mount internally, which enforces trailing slashes per Starlette design
+        app = mcp.http_app(path="/mcp/", middleware=[cors_middleware])
+        
+        # Workaround for Starlette Mount trailing slash behavior (issue #869)
+        # https://github.com/encode/starlette/issues/869
+        # Create middleware that modifies the path scope to add trailing slash
+        class MCPPathRedirect:
+            def __init__(self, app):
+                self.app = app
+
+            async def __call__(self, scope, receive, send):
+                if scope.get('type') == 'http' and scope.get('path') == '/mcp':
+                    scope['path'] = '/mcp/'
+                    scope['raw_path'] = b'/mcp/'
+                await self.app(scope, receive, send)
+        
+        # Apply the middleware
+        app = MCPPathRedirect(app)
 
         # Get the Starlette app and add CORS middleware
         app = mcp.streamable_http_app()
