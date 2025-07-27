@@ -283,7 +283,6 @@ uv run tests/run_coverage.py clean
 - **Coverage Source**: `mlb_api.py` and `generic_api.py`
 - **Reports**: Terminal output, HTML (`htmlcov/index.html`), and XML (`coverage.xml`)
 - **CI Integration**: Coverage checking and badge updates run automatically on every push/PR
-  - **Note**: For external pull requests (from forks), the coverage badge cannot be updated automatically due to GitHub security restrictions. Coverage information is still displayed in the workflow summary, and the badge will be updated when the PR is merged by a maintainer.
 
 ### Test Structure
 
