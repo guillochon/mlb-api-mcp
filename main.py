@@ -152,9 +152,6 @@ if __name__ == "__main__":
         # Environment variable takes priority over command line argument
         port = int(os.environ.get("PORT", args.port))
 
-        # Set the MCP endpoint path to /mcp (without trailing slash)
-        fastmcp.settings.streamable_http_path = "/mcp"
-
         print(f"Starting MLB API MCP Server on port {port}...")
         print(f"- Documentation: http://localhost:{port}/docs")
         print(f"- Health check: http://localhost:{port}/health")
@@ -175,8 +172,25 @@ if __name__ == "__main__":
             max_age=86400,
         )
 
-        # Get the Starlette app with CORS middleware included
-        app = mcp.streamable_http_app(middleware=[cors_middleware])
+        # Get the Starlette app with CORS middleware (using modern http_app method)
+        # Note: FastMCP uses Mount internally, which enforces trailing slashes per Starlette design
+        app = mcp.http_app(path="/mcp/", middleware=[cors_middleware])
+        
+        # Workaround for Starlette Mount trailing slash behavior (issue #869)
+        # https://github.com/encode/starlette/issues/869
+        # Create middleware that modifies the path scope to add trailing slash
+        class MCPPathRedirect:
+            def __init__(self, app):
+                self.app = app
+
+            async def __call__(self, scope, receive, send):
+                if scope.get('type') == 'http' and scope.get('path') == '/mcp':
+                    scope['path'] = '/mcp/'
+                    scope['raw_path'] = b'/mcp/'
+                await self.app(scope, receive, send)
+        
+        # Apply the middleware
+        app = MCPPathRedirect(app)
 
         # Run the MCP server with HTTP transport using uvicorn
         uvicorn.run(
