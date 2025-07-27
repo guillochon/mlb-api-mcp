@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
         # Get the Starlette app with CORS middleware (using modern http_app method)
         # Note: FastMCP uses Mount internally, which enforces trailing slashes per Starlette design
-        app = mcp.http_app(path="/mcp/", middleware=[cors_middleware])
+        app = mcp.http_app(middleware=[cors_middleware])
         
         # Workaround for Starlette Mount trailing slash behavior (issue #869)
         # https://github.com/encode/starlette/issues/869
