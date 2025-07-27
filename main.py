@@ -3,6 +3,7 @@ import os
 import warnings
 
 import uvicorn
+import fastmcp
 from fastmcp import FastMCP
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -44,7 +45,7 @@ async def mcp_info(request):
             "protocol": "mcp",
             "server_name": "MLB API MCP Server",
             "description": "Model Context Protocol server for MLB statistics and baseball data",
-            "mcp_endpoint": "/mcp/",
+            "mcp_endpoint": "/mcp",
             "tools_available": len(tools_list),
             "note": "This is an MCP server. Use MCP-compatible clients to interact with the tools.",
         }
@@ -108,7 +109,7 @@ async def docs(request):
         </div>
         
         <div class="endpoint">
-            <span class="method">POST</span> <span class="path">/mcp/</span>
+            <span class="method">POST</span> <span class="path">/mcp</span>
             <p>MCP protocol endpoint for MCP-compatible clients</p>
         </div>
         
@@ -151,26 +152,20 @@ if __name__ == "__main__":
         # Environment variable takes priority over command line argument
         port = int(os.environ.get("PORT", args.port))
 
+        # Set the MCP endpoint path to /mcp (without trailing slash)
+        fastmcp.settings.streamable_http_path = "/mcp"
+
         print(f"Starting MLB API MCP Server on port {port}...")
         print(f"- Documentation: http://localhost:{port}/docs")
         print(f"- Health check: http://localhost:{port}/health")
         print(f"- MCP server info: http://localhost:{port}/info")
         print(f"- Tools list: http://localhost:{port}/tools")
-        print(f"- MCP protocol: http://localhost:{port}/mcp/")
+        print(f"- MCP protocol: http://localhost:{port}/mcp")
 
-        # Get the Starlette app and add CORS middleware
-        app = mcp.streamable_http_app()
+        # Create CORS middleware configuration
+        from starlette.middleware import Middleware
         
-        # Simple fix: Add /mcp route (without slash) to prevent 307 redirects
-        # Find the existing /mcp/ handler and reuse it for /mcp
-        for route in app.router.routes:
-            if hasattr(route, 'path') and route.path == "/mcp/" and hasattr(route, 'endpoint'):
-                from starlette.routing import Route
-                app.router.routes.insert(0, Route("/mcp", route.endpoint, methods=["POST"]))
-                break
-        
-        # Add CORS middleware with proper header exposure for MCP session management
-        app.add_middleware(
+        cors_middleware = Middleware(
             CORSMiddleware,
             allow_origins=["*"],  # Configure this more restrictively in production
             allow_credentials=True,
@@ -179,6 +174,9 @@ if __name__ == "__main__":
             expose_headers=["mcp-session-id"],  # Allow client to read session ID
             max_age=86400,
         )
+
+        # Get the Starlette app with CORS middleware included
+        app = mcp.streamable_http_app(middleware=[cors_middleware])
 
         # Run the MCP server with HTTP transport using uvicorn
         uvicorn.run(
