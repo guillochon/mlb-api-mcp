@@ -161,6 +161,14 @@ if __name__ == "__main__":
         # Get the Starlette app and add CORS middleware
         app = mcp.streamable_http_app()
         
+        # Simple fix: Add /mcp route (without slash) to prevent 307 redirects
+        # Find the existing /mcp/ handler and reuse it for /mcp
+        for route in app.router.routes:
+            if hasattr(route, 'path') and route.path == "/mcp/" and hasattr(route, 'endpoint'):
+                from starlette.routing import Route
+                app.router.routes.insert(0, Route("/mcp", route.endpoint, methods=["POST"]))
+                break
+        
         # Add CORS middleware with proper header exposure for MCP session management
         app.add_middleware(
             CORSMiddleware,
