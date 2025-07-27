@@ -152,6 +152,9 @@ if __name__ == "__main__":
         # Environment variable takes priority over command line argument
         port = int(os.environ.get("PORT", args.port))
 
+        # Set the MCP endpoint path to /mcp (without trailing slash)
+        fastmcp.settings.streamable_http_path = "/mcp"
+
         print(f"Starting MLB API MCP Server on port {port}...")
         print(f"- Documentation: http://localhost:{port}/docs")
         print(f"- Health check: http://localhost:{port}/health")
@@ -172,61 +175,8 @@ if __name__ == "__main__":
             max_age=86400,
         )
 
-        # Get the Starlette app with CORS middleware (using modern http_app method)
-        # Note: FastMCP uses Mount internally, which enforces trailing slashes per Starlette design
-        app = mcp.http_app(path="/mcp/", middleware=[cors_middleware])
-        
-        # Workaround for Starlette Mount trailing slash behavior (issue #869)
-        # https://github.com/encode/starlette/issues/869
-        # Create middleware that modifies the path scope to add trailing slash
-        class MCPPathRedirect:
-            def __init__(self, app):
-                self.app = app
-
-            async def __call__(self, scope, receive, send):
-                if scope.get('type') == 'http' and scope.get('path') == '/mcp':
-                    scope['path'] = '/mcp/'
-                    scope['raw_path'] = b'/mcp/'
-                await self.app(scope, receive, send)
-        
-        # Apply the middleware
-        app = MCPPathRedirect(app)
-
-        # Get the Starlette app and add CORS middleware
-        app = mcp.streamable_http_app()
-        
-        # Add CORS middleware with proper header exposure for MCP session management
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],  # Configure this more restrictively in production
-            allow_credentials=True,
-            allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=["*"],
-            expose_headers=["mcp-session-id"],  # Allow client to read session ID
-            max_age=86400,
-        )
-
-        # Get the Starlette app and add CORS middleware
-        app = mcp.streamable_http_app()
-        
-        # Simple fix: Add /mcp route (without slash) to prevent 307 redirects
-        # Find the existing /mcp/ handler and reuse it for /mcp
-        for route in app.router.routes:
-            if hasattr(route, 'path') and route.path == "/mcp/" and hasattr(route, 'endpoint'):
-                from starlette.routing import Route
-                app.router.routes.insert(0, Route("/mcp", route.endpoint, methods=["POST"]))
-                break
-        
-        # Add CORS middleware with proper header exposure for MCP session management
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],  # Configure this more restrictively in production
-            allow_credentials=True,
-            allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=["*"],
-            expose_headers=["mcp-session-id"],  # Allow client to read session ID
-            max_age=86400,
-        )
+        # Get the Starlette app with CORS middleware included
+        app = mcp.streamable_http_app(middleware=[cors_middleware])
 
         # Run the MCP server with HTTP transport using uvicorn
         uvicorn.run(
