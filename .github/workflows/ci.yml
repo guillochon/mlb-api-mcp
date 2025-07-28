@@ -32,6 +32,8 @@ jobs:
       run: uv run pytest --cov-report=xml
 
     - name: Generate coverage badge
+      # Only run on push events or PRs from the same repository (not external forks)
+      if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
       run: |
         # Extract coverage percentage from XML
         COVERAGE=$(python -c "
@@ -66,4 +68,26 @@ jobs:
           echo "Push failed, pulling latest changes and retrying..."
           git pull origin ${BRANCH_NAME} --rebase || git pull origin ${BRANCH_NAME} --no-rebase
           git push origin HEAD:${BRANCH_NAME}
-        fi 
+        fi
+
+    - name: Coverage report (for external PRs)
+      # Only run on external PRs where we can't update the badge
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+      run: |
+        # Extract coverage percentage from XML
+        COVERAGE=$(python -c "
+        import xml.etree.ElementTree as ET
+        tree = ET.parse('coverage.xml')
+        root = tree.getroot()
+        coverage = float(root.attrib['line-rate']) * 100
+        print(f'{coverage:.2f}')
+        ")
+        
+        echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "Current coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Note: Coverage badge cannot be updated automatically for external pull requests due to security restrictions." >> $GITHUB_STEP_SUMMARY
+        echo "The badge will be updated when this PR is merged by a maintainer." >> $GITHUB_STEP_SUMMARY
+        
+        # Output coverage to logs for visibility
+        echo "Coverage: ${COVERAGE}%" 
