@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
         # Get the Starlette app with CORS middleware (using modern http_app method)
         # Note: FastMCP uses Mount internally, which enforces trailing slashes per Starlette design
-        app = mcp.http_app(path="/mcp/", middleware=[cors_middleware])
+        app = mcp.http_app(middleware=[cors_middleware])
         
         # Workaround for Starlette Mount trailing slash behavior (issue #869)
         # https://github.com/encode/starlette/issues/869
@@ -192,11 +192,10 @@ if __name__ == "__main__":
         # Apply the middleware
         app = MCPPathRedirect(app)
 
-        # Get the Starlette app and add CORS middleware
-        app = mcp.streamable_http_app()
+        # Create CORS middleware configuration
+        from starlette.middleware import Middleware
         
-        # Add CORS middleware with proper header exposure for MCP session management
-        app.add_middleware(
+        cors_middleware = Middleware(
             CORSMiddleware,
             allow_origins=["*"],  # Configure this more restrictively in production
             allow_credentials=True,
@@ -205,6 +204,26 @@ if __name__ == "__main__":
             expose_headers=["mcp-session-id"],  # Allow client to read session ID
             max_age=86400,
         )
+
+        # Get the Starlette app with CORS middleware (using modern http_app method)
+        # Note: FastMCP uses Mount internally, which enforces trailing slashes per Starlette design
+        app = mcp.http_app(middleware=[cors_middleware])
+        
+        # Workaround for Starlette Mount trailing slash behavior (issue #869)
+        # https://github.com/encode/starlette/issues/869
+        # Create middleware that modifies the path scope to add trailing slash
+        class MCPPathRedirect:
+            def __init__(self, app):
+                self.app = app
+
+            async def __call__(self, scope, receive, send):
+                if scope.get('type') == 'http' and scope.get('path') == '/mcp':
+                    scope['path'] = '/mcp/'
+                    scope['raw_path'] = b'/mcp/'
+                await self.app(scope, receive, send)
+        
+        # Apply the middleware
+        app = MCPPathRedirect(app)
 
         # Run the MCP server with HTTP transport using uvicorn
         uvicorn.run(
