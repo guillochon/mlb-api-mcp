@@ -7,6 +7,10 @@
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides comprehensive access to MLB statistics and baseball data through a FastMCP-based interface.
 
+<a href="https://glama.ai/mcp/servers/@guillochon/mlb-api-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@guillochon/mlb-api-mcp/badge" alt="mlb-api-mcp MCP server" />
+</a>
+
 ## Overview
 
 This MCP server acts as a bridge between AI applications and MLB data sources, enabling seamless integration of baseball statistics, game information, player data, and more into AI workflows and applications.
