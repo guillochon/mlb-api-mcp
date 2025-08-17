@@ -2,6 +2,8 @@
 
 [![CI Status](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml)
 ![License](https://img.shields.io/github/license/guillochon/mlb-api-mcp)
+
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/guillochon/mlb-api-mcp)](https://archestra.ai/mcp-catalog/guillochon__mlb-api-mcp)
 [![smithery badge](https://smithery.ai/badge/@guillochon/mlb-api-mcp)](https://smithery.ai/server/@guillochon/mlb-api-mcp)
 ![Coverage](https://img.shields.io/badge/coverage-86.27%25-brightgreen)
 
