@@ -11,6 +11,10 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that p
 
 This MCP server acts as a bridge between AI applications and MLB data sources, enabling seamless integration of baseball statistics, game information, player data, and more into AI workflows and applications.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/guillochon-mlb-api-mcp).
+
 ## Features
 
 ### MLB Data Access
