@@ -18,6 +18,20 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="uvicorn.p
 # Create FastMCP server instance
 mcp = FastMCP("MLB API MCP Server")
 
+
+async def get_tools_dict():
+    """Return the server's registered tools as a {name: tool} dict.
+
+    FastMCP renamed ``FastMCP.get_tools()`` (v2) to ``FastMCP.list_tools()`` (v3)
+    and changed its return type from a ``dict[str, Tool]`` to a ``list[Tool]``.
+    This helper works with both: it calls whichever method exists and normalizes
+    to the dict shape that the custom routes below already iterate over.
+    """
+    if hasattr(mcp, "list_tools"):
+        tools = await mcp.list_tools()  # FastMCP 3.x -> Sequence[Tool]
+        return {tool.name: tool for tool in tools}
+    return await mcp.get_tools()  # type: ignore[attr-defined]  # FastMCP 2.x -> dict[str, Tool]
+
 # Setup all MLB and generic tools
 setup_mlb_tools(mcp)
 setup_generic_tools(mcp)
@@ -38,7 +52,7 @@ async def health_check(request):
 @mcp.custom_route("/info", methods=["GET"])
 async def mcp_info(request):
     """Information about the MCP server"""
-    tools_list = await mcp.get_tools()
+    tools_list = await get_tools_dict()
     return JSONResponse(
         {
             "status": "running",
@@ -56,7 +70,7 @@ async def mcp_info(request):
 async def list_tools(request):
     """List available MCP tools"""
     tools = []
-    tools_list = await mcp.get_tools()
+    tools_list = await get_tools_dict()
     for tool_name, tool in tools_list.items():
         tools.append(
             {
@@ -72,7 +86,7 @@ async def list_tools(request):
 @mcp.custom_route("/docs", methods=["GET"])
 async def docs(request):
     """Basic documentation endpoint"""
-    tools_list = await mcp.get_tools()
+    tools_list = await get_tools_dict()
     docs_html = f"""
     <!DOCTYPE html>
     <html>
