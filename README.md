@@ -3,7 +3,7 @@
 [![CI Status](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/guillochon/mlb-api-mcp/actions/workflows/ci.yml)
 ![License](https://img.shields.io/github/license/guillochon/mlb-api-mcp)
 [![smithery badge](https://smithery.ai/badge/@guillochon/mlb-api-mcp)](https://smithery.ai/server/@guillochon/mlb-api-mcp)
-![Coverage](https://img.shields.io/badge/coverage-86.27%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-89.91%25-brightgreen)
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides comprehensive access to MLB statistics and baseball data through a FastMCP-based interface.
 
@@ -279,10 +279,10 @@ uv run tests/run_coverage.py clean
 
 ### Coverage
 
-- **Current Coverage**: 86.27% (exceeds 80% threshold)
+- **Current Coverage**: 89.91% (exceeds 80% threshold)
 - **Coverage Source**: `mlb_api.py` and `generic_api.py`
 - **Reports**: Terminal output, HTML (`htmlcov/index.html`), and XML (`coverage.xml`)
-- **CI Integration**: Coverage checking and badge updates run automatically on every push/PR
+- **CI Integration**: Coverage checking runs automatically on every push/PR; results are published in the GitHub Actions job summary
 
 ### Test Structure
 
