@@ -292,6 +292,22 @@ The test suite includes:
 - **Edge case tests** for boundary conditions
 - **Mock-based tests** to avoid external API calls
 
+### Live-API Scan
+
+The mocked test suite protects this repo's own logic but does not exercise the
+real upstream MLB Stats API / pybaseball services, whose response shapes are
+outside this repo's control. To verify the tools still work against live data
+(e.g. after upstream field renames or contract changes), run the one-time scan:
+
+```bash
+# Invokes every registered tool against the real upstream API and prints a
+# pass/fail summary plus the top-level return type of each result.
+uv run python scripts/scan_live_tools.py
+```
+
+The scan writes a full JSON report to `scripts/live_scan_report.json` (gitignored).
+This is a manual verification pass, not part of the automated CI suite.
+
 ### Adding New Tests
 
 When adding new functionality:
